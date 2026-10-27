@@ -477,7 +477,12 @@ async def daily_job(context: ContextTypes.DEFAULT_TYPE) -> None:
 # ----------------------------------------------------------------- wiring
 
 async def post_init(app: Application) -> None:
-    await app.bot.set_my_commands([
+    await setup_bot(app.bot)
+
+
+async def setup_bot(bot) -> None:
+    """Command list and the menu button that opens the catalogue."""
+    await bot.set_my_commands([
         BotCommand("start", "شروع و منوی اصلی"),
         BotCommand("me", "وضعیت عضویت و امانت من"),
         BotCommand("books", "فهرست کتاب‌ها"),
@@ -485,11 +490,16 @@ async def post_init(app: Application) -> None:
         BotCommand("rules", "قوانین کتابخانه"),
     ])
     if _https():
-        await app.bot.set_chat_menu_button(menu_button=MenuButtonWebApp("کتاب‌ها", WebAppInfo(config.BASE_URL + "/")))
+        await bot.set_chat_menu_button(menu_button=MenuButtonWebApp("کتاب‌ها", WebAppInfo(config.BASE_URL + "/")))
 
 
-def build_application() -> Application:
-    app = Application.builder().token(config.BOT_TOKEN).post_init(post_init).build()
+def build_application(webhook: bool = False) -> Application:
+    builder = Application.builder().token(config.BOT_TOKEN).post_init(post_init)
+    if config.TG_PROXY:
+        builder = builder.proxy(config.TG_PROXY).get_updates_proxy(config.TG_PROXY)
+    if webhook:  # one update per web request; the daily job runs as a scheduled task instead
+        builder = builder.updater(None).job_queue(None)
+    app = builder.build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("me", me))
     app.add_handler(CommandHandler("extend", extend))
@@ -505,5 +515,18 @@ def build_application() -> Application:
     app.add_handler(CallbackQueryHandler(on_callback))
     app.add_handler(MessageHandler(filters.PHOTO | filters.Document.ALL, on_receipt))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, on_text))
-    app.job_queue.run_daily(daily_job, dt.time(hour=config.DAILY_JOB_HOUR, tzinfo=ZoneInfo(config.TIMEZONE)))
+    if not webhook:
+        app.job_queue.run_daily(daily_job, dt.time(hour=config.DAILY_JOB_HOUR, tzinfo=ZoneInfo(config.TIMEZONE)))
     return app
+
+
+async def process_webhook_update(data: dict) -> None:
+    """Handle one update pushed by Telegram (webhook mode)."""
+    app = build_application(webhook=True)
+    await app.initialize()
+    notify.set_bot(app.bot)
+    try:
+        await app.process_update(Update.de_json(data, app.bot))
+    finally:
+        notify.set_bot(None)
+        await app.shutdown()

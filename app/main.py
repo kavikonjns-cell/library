@@ -22,7 +22,7 @@ log = logging.getLogger("kavikonj")
 async def lifespan(_app):
     init_db()
     tg_app = None
-    if config.BOT_TOKEN:
+    if config.BOT_TOKEN and config.BOT_MODE == "polling":
         from .bot import build_application
         tg_app = build_application()
         await tg_app.initialize()
@@ -36,7 +36,7 @@ async def lifespan(_app):
         notify.set_bot(tg_app.bot)
         log.info("Telegram bot started")
     else:
-        log.warning("BOT_TOKEN is empty: running the website only")
+        log.warning("bot not polling (BOT_MODE=%s, token set: %s)", config.BOT_MODE, bool(config.BOT_TOKEN))
     try:
         yield
     finally:

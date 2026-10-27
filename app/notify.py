@@ -4,6 +4,7 @@ from __future__ import annotations
 import logging
 
 from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.request import HTTPXRequest
 
 from . import config, services
 
@@ -24,6 +25,8 @@ def keyboard(buttons) -> InlineKeyboardMarkup | None:
 
 
 async def send(chat_id: int, text: str, buttons=None) -> None:
+    if _bot is None and config.BOT_TOKEN:
+        return await _with_bot(send(chat_id, text, buttons))
     if _bot is None:
         log.info("bot offline, not sent to %s: %s", chat_id, text[:80])
         return
@@ -33,7 +36,31 @@ async def send(chat_id: int, text: str, buttons=None) -> None:
         log.exception("could not send message to %s", chat_id)
 
 
+def make_bot() -> Bot:
+    """A standalone bot client (for web requests and scheduled tasks without a running bot)."""
+    request = HTTPXRequest(proxy=config.TG_PROXY or None)
+    return Bot(config.BOT_TOKEN, request=request)
+
+
+async def _with_bot(coro) -> None:
+    """Run ``coro`` with a short-lived bot client; never raise (Telegram may be unreachable)."""
+    try:
+        async with make_bot() as bot:
+            set_bot(bot)
+            try:
+                await coro
+            finally:
+                set_bot(None)
+    except Exception:
+        coro.close()
+        log.exception("Telegram is not reachable; messages not sent")
+
+
 async def deliver(notices: list[services.Notice]) -> None:
+    if not notices:
+        return
+    if _bot is None and config.BOT_TOKEN:
+        return await _with_bot(deliver(notices))
     for n in notices:
         if n.admins:
             for admin_id in config.ADMIN_IDS:
