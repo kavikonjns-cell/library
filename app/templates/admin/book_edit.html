@@ -1,0 +1,23 @@
+{% extends "admin/base.html" %}
+{% block title %}{{ b.code }}{% endblock %}
+{% block body %}
+<h2>{{ 'کتاب تازه' if b.new else 'ویرایش ' ~ b.code }}</h2>
+<form method="post" action="/admin/books/save" class="grid">
+  <label>کد کتاب *<input type="text" name="code" value="{{ b.code }}" dir="ltr" {{ '' if b.new else 'readonly' }}></label>
+  <label>عنوان *<input type="text" name="title" value="{{ b.title or '' }}" required></label>
+  <label>نویسنده / گردآورنده<input type="text" name="author" value="{{ b.author or '' }}"></label>
+  <label>مترجم<input type="text" name="translator" value="{{ b.translator or '' }}"></label>
+  <label>ناشر<input type="text" name="publisher" value="{{ b.publisher or '' }}"></label>
+  <label>سال نشر<input type="text" name="year" value="{{ b.year or '' }}"></label>
+  <label>موضوع اصلی<select name="topic1">{% for t in cfg.TOPICS %}<option {{ 'selected' if t == b.topic1 }}>{{ t }}</option>{% endfor %}</select></label>
+  <label>موضوع دوم<select name="topic2"><option value=""></option>{% for t in cfg.TOPICS %}<option {{ 'selected' if t == b.topic2 }}>{{ t }}</option>{% endfor %}</select></label>
+  <label>وضعیت فیزیکی<select name="condition">{% for t in ['نو','سالم','فرسوده','آسیب‌دیده'] %}<option {{ 'selected' if t == b.condition }}>{{ t }}</option>{% endfor %}</select></label>
+  <label>منبع<select name="source">{% for t in ['خرید','اهدایی','سایر'] %}<option {{ 'selected' if t == b.source }}>{{ t }}</option>{% endfor %}</select></label>
+  <label>تاریخ ورود (شمسی)<input type="text" name="added_at" value="{{ b.added_at or '' }}" placeholder="۱۴۰۵/۰۸/۰۱"></label>
+  <label>یادداشت<input type="text" name="note" value="{{ b.note or '' }}"></label>
+  <label class="opt"><input type="checkbox" name="active" value="1" {{ 'checked' if b.active }}> در قفسه (قابل امانت)</label>
+  <label style="grid-column:1/-1">معرفی کوتاه (برای تلگرام)<textarea name="short_intro">{{ b.short_intro or '' }}</textarea></label>
+  <label style="grid-column:1/-1">معرفی کامل (برای سایت)<textarea name="summary" style="min-height:150px">{{ b.summary or '' }}</textarea></label>
+  <div><button class="btn">ذخیره</button> <a href="/admin/books" class="btn gray">انصراف</a></div>
+</form>
+{% endblock %}

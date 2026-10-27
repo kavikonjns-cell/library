@@ -1,0 +1,60 @@
+{% extends "admin/base.html" %}
+{% block title %}داشبورد{% endblock %}
+{% block body %}
+<h2>امروز {{ today_long() }}</h2>
+<div class="stats">
+  <div class="stat"><div class="n">{{ fa(stats.titles) }}</div><div class="l">عنوان کتاب ({{ fa(stats.copies) }} نسخه)</div></div>
+  <div class="stat"><div class="n">{{ fa(stats.available) }}</div><div class="l">موجود در قفسه</div></div>
+  <div class="stat"><div class="n">{{ fa(stats.on_loan) }}</div><div class="l">در امانت</div></div>
+  <div class="stat"><div class="n">{{ fa(stats.reserved) }}</div><div class="l">رزرو، منتظر تحویل</div></div>
+  <div class="stat"><div class="n" style="color:var(--err)">{{ fa(stats.overdue) }}</div><div class="l">دیرکرد</div></div>
+  <div class="stat"><div class="n">{{ fa(stats.valid_members) }}</div><div class="l">عضو معتبر از {{ fa(stats.members) }}</div></div>
+  <div class="stat"><div class="n">{{ fa(stats.pending_payments) }}</div><div class="l">منتظر تأیید پرداخت</div></div>
+  <div class="stat"><div class="n">{{ fa(stats.waiting) }}</div><div class="l">در صف انتظار</div></div>
+  <div class="stat"><div class="n" style="font-size:18px">{{ money(stats.balance) }}</div><div class="l">موجودی صندوق</div></div>
+</div>
+
+<h2>📌 رزروها (منتظر تحویل در {{ cfg.PICKUP_PLACE }})</h2>
+{% if reserved %}<div class="tbl"><table>
+<tr><th>#</th><th>کتاب</th><th>عضو</th><th>تماس</th><th>مدت</th><th>تحویل تا</th><th></th></tr>
+{% for r in reserved %}<tr>
+  <td>{{ fa(r.id) }}</td><td>{{ r.book_code }} «{{ r.title }}»</td><td><a href="/admin/members/{{ r.member_code }}">{{ r.member_code }} {{ r.name }}</a></td>
+  <td class="mono">{{ fa(r.phone) }}</td><td>{{ fa(r.requested_days) }} روز</td><td>{{ jdate(r.reserve_expires) }}</td>
+  <td><form method="post" action="/admin/loans/{{ r.id }}/handover"><input type="text" name="by" placeholder="تحویل‌دهنده" size="8"><button class="btn sm">تحویل شد</button></form>
+      <form method="post" action="/admin/loans/{{ r.id }}/cancel"><button class="btn sm gray">لغو</button></form></td>
+</tr>{% endfor %}</table></div>{% else %}<p class="small">رزروی نیست.</p>{% endif %}
+
+<h2>⏰ دیرکردها</h2>
+{% if overdue %}<div class="tbl"><table>
+<tr><th>#</th><th>کتاب</th><th>عضو</th><th>تماس</th><th>مهلت</th><th></th></tr>
+{% for r in overdue %}<tr class="late">
+  <td>{{ fa(r.id) }}</td><td>{{ r.book_code }} «{{ r.title }}»</td><td><a href="/admin/members/{{ r.member_code }}">{{ r.member_code }} {{ r.name }}</a></td>
+  <td class="mono">{{ fa(r.phone) }}</td><td>{{ jdate(r.due_date) }}</td><td><a class="btn sm" href="/admin/loans">ثبت برگشت</a></td>
+</tr>{% endfor %}</table></div>{% else %}<p class="small">دیرکردی نیست. 🌿</p>{% endif %}
+
+<h2>⏳ منتظر تأیید پرداخت حق عضویت</h2>
+{% if pending %}<div class="tbl"><table>
+<tr><th>کد</th><th>نام</th><th>نقش</th><th>مبلغ</th><th>فیش</th><th></th></tr>
+{% for m in pending %}<tr>
+  <td><a href="/admin/members/{{ m.code }}">{{ m.code }}</a></td><td>{{ m.name }}</td><td>{{ m.role }}</td><td>{{ money(m.fee) }}</td>
+  <td>{% if m.receipt_file_id %}<span class="pill ok">در تلگرام رسیده</span>{% elif m.payment_status == 'rejected' %}<span class="pill bad">رد شد</span>{% else %}<span class="pill">نرسیده</span>{% endif %}</td>
+  <td><form method="post" action="/admin/members/{{ m.code }}/approve"><select name="method">{% for x in cfg.PAYMENT_METHODS %}<option>{{ x }}</option>{% endfor %}</select><button class="btn sm">تأیید پرداخت</button></form></td>
+</tr>{% endfor %}</table></div>{% else %}<p class="small">موردی نیست.</p>{% endif %}
+
+<h2>💰 جریمه‌های تسویه‌نشده</h2>
+{% if fines %}<div class="tbl"><table>
+<tr><th>امانت</th><th>کتاب</th><th>عضو</th><th>مبلغ</th><th></th></tr>
+{% for r in fines %}<tr><td>{{ fa(r.id) }}</td><td>«{{ r.title }}»</td><td>{{ r.member_code }} {{ r.name }}</td><td>{{ money(r.fine) }}</td>
+  <td><form method="post" action="/admin/loans/{{ r.id }}/finepaid"><select name="method">{% for x in cfg.PAYMENT_METHODS %}<option>{{ x }}</option>{% endfor %}</select><button class="btn sm">تسویه شد</button></form></td></tr>{% endfor %}
+</table></div>{% else %}<p class="small">موردی نیست.</p>{% endif %}
+
+<h2>🕒 صف انتظار</h2>
+{% if waitlist %}<div class="tbl"><table>
+<tr><th>کتاب</th><th>عضو</th><th>از تاریخ</th><th>مدت درخواستی</th></tr>
+{% for w in waitlist %}<tr><td>{{ w.base_code }} «{{ w.title }}»</td><td>{{ w.member_code }} {{ w.name }}</td><td>{{ jdate(w.requested_at) }}</td><td>{{ fa(w.requested_days) }} روز</td></tr>{% endfor %}
+</table></div>{% else %}<p class="small">کسی در صف نیست.</p>{% endif %}
+
+<h2>📤 خروجی</h2>
+<p><a class="btn" href="/admin/export.xlsx">دانلود فایل اکسل (همۀ برگه‌ها)</a>
+   <a class="btn alt" href="/admin/catalog.html">دانلود فهرست کتاب‌ها (HTML برای گروه تلگرام)</a></p>
+{% endblock %}

@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ cfg.LIBRARY_NAME }}</title>
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/vazirmatn@33.0.3/Vazirmatn-font-face.css">
+{% if static %}<style>{{ inline_css | safe }}</style>{% else %}<link rel="stylesheet" href="/static/style.css">
+<script src="https://telegram.org/js/telegram-web-app.js"></script>{% endif %}
+<style>
+.intro { margin: 16px 0 0; background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 14px 16px 6px; text-align: right; font-size: 15px; line-height: 2; }
+.intro p { margin: 0 0 10px; } .intro .tagl { color: var(--g-d); font-size: 16.5px; font-weight: bold; text-align: center; }
+.intro h4 { margin: 14px 0 4px; font-size: 16px; color: var(--g-d); } .intro .li { margin: 0 0 2px; }
+.intro .close { margin: 14px -16px 0; padding: 10px 16px; background: var(--m-xl); border-radius: 0 0 16px 16px; text-align: center; }
+.intro-more { display: none; } .intro.open .intro-more { display: block; }
+.intro .tgl { background: none; border: 0; color: var(--g-d); font: inherit; font-size: 14px; cursor: pointer; padding: 0 0 8px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+<header id="top">
+  <img class="logo" src="{{ logo if static else '/static/logo.png' }}" alt="کاوی کنج">
+  <h1>{{ cfg.LIBRARY_NAME }}</h1>
+  <p class="sub">{{ cfg.LIBRARY_SUB }}</p>
+  <div class="me" id="me"></div>
+  <div class="intro" id="intro">
+    <p class="tagl">🪴 جایی برای خواندن، شناختن و کشف جهان کودک و طبیعت</p>
+    <p>کتاب‌ها می‌توانند پنجره‌ای باشند به جهان‌هایی که هنوز نمی‌شناسیم؛ به تجربه‌های تازه، نگاه‌های متفاوت و پرسش‌هایی که راه‌های جدیدی برای فهمیدن جهان پیش پایمان می‌گذارند.</p>
+    <div class="intro-more">
+      <p>📖 کتابخانه کودک و طبیعت کاوی کنج با همین نگاه شکل گرفته است؛ تلاشی برای گردآوری و در دسترس قرار دادن کتاب‌های مرتبط با حوزه کودک و طبیعت برای علاقه‌مندان این حوزه؛ از والدین و مربیان گرفته تا تسهیلگران، پژوهشگران و همه کسانی که دغدغه کودکی و طبیعت را دارند.</p>
+      <h4>🌱 چرا کاوی کنج؟</h4><p class="li">✨ نخستین کتابخانه تخصصی کودک و طبیعت در کشور</p><p class="li">📚 مجموعه‌ای از کتاب‌های مرتبط با کودک، طبیعت و تجربه کودکی</p><p class="li">🔎 فرصتی برای آشنایی با دیدگاه‌ها، تجربه‌ها و اندیشه‌های متنوع در این حوزه</p>
+      <h4>💚 حق عضویت؛ سهمی در رشد کتابخانه</h4><p>کتابخانه کاوی کنج با هدف درآمدزایی راه‌اندازی نشده است. حق عضویت اعضا صرف توسعه کتابخانه و افزایش تعداد و تنوع کتاب‌های موجود می‌شود.</p>
+      <h4>📍 یک نکته مهم</h4><p>در حال حاضر، خدمات کتابخانه صرفاً به ساکنان شهر مشهد ارائه می‌شود.</p>
+    </div>
+    <button type="button" class="tgl" id="introToggle">بیشتر بخوانید…</button>
+    <p class="close">💚 {{ cfg.SLOGAN }}</p>
+  </div>
+  <div class="rules">هر نفر در یک زمان <b>یک کتاب</b> امانت می‌گیرد؛ مدت امانت <b>دو هفته</b> است و با تمدید تا <b>{{ fa(cfg.LOAN_MAX_TOTAL_DAYS) }} روز</b> می‌شود. تحویل و بازگرداندن کتاب در {{ cfg.PICKUP_PLACE }} است.
+  برای هر روز تأخیر <b>{{ money(cfg.FINE_PER_DAY) }}</b> جریمه است (حداکثر {{ fa(cfg.FINE_MAX_DAYS) }} روز) و از <b>روز {{ fa(cfg.REVOKE_AFTER_LATE_DAYS) }}م</b> تأخیر، عضویت باطل می‌شود.
+  برای امانت، دکمۀ «درخواست امانت» زیر هر کتاب را بزنید. اگر کتاب در امانت باشد، تاریخ برگشتنش را می‌بینید و در صف انتظار قرار می‌گیرید.</div>
+</header>
+
+<div class="tools">
+  <input type="search" id="q" placeholder="جست‌وجوی نام کتاب، نویسنده یا کد…" aria-label="جست‌وجو">
+  <label class="chip"><input type="checkbox" id="onlyFree"> فقط موجود در قفسه</label>
+</div>
+<p class="hint">وضعیت قفسه: {{ today }}{% if static %} <span id="live"></span>{% endif %} · یک دسته را باز کنید و روی نام کتاب بزنید.</p>
+<nav>
+{% for topic, items in groups %}
+<details name="cat"><summary><span class="s-t">{{ topic }}</span><span class="s-n">{{ fa(items|length) }}</span></summary><ol>
+{% for b in items %}<li data-code="{{ b.code }}"><a href="#{{ loop.index0 }}-{{ b.code }}" data-jump="{{ b.code }}"><span class="dot {{ b.status.state }}"></span><span class="li-x"><span class="li-t">{{ b.title }}</span><span class="li-a">{{ b.author }}</span></span></a></li>{% endfor %}
+</ol></details>
+{% endfor %}
+</nav>
+
+<main>
+{% for topic, items in groups %}{% set sec = loop.index0 %}
+<section><h2>{{ topic }}</h2>
+{% for b in items %}
+<article class="book" id="{{ sec }}-{{ b.code }}" data-code="{{ b.code }}" data-state="{{ b.status.state }}"
+  data-search="{{ (b.code ~ ' ' ~ b.title ~ ' ' ~ b.author ~ ' ' ~ b.translator) | lower }}">
+  <div class="head">
+    <div class="cover">{% set c = cover_url(b.code) %}{% if c %}<img src="{{ c }}" alt="جلد {{ b.title }}" loading="lazy">{% else %}<div class="ph">{{ b.title }}</div>{% endif %}</div>
+    <div class="meta"><span class="code">{{ b.code }}</span><h3>{{ b.title }}</h3>
+      {% if b.author %}<p class="by">{{ b.author }}</p>{% endif %}
+      {% if b.translator %}<p class="tr">ترجمۀ {{ b.translator }}</p>{% endif %}
+      <div class="tags">{% for t in [b.topic1, b.topic2] if t %}<span class="tag">{{ t }}</span>{% endfor %}</div>
+    </div>
+  </div>
+  <p class="sum">{{ b.summary or b.short_intro or 'معرفی این کتاب به‌زودی اضافه می‌شود.' }}</p>
+  <div class="shelf"><span class="badge {{ b.status.state }}">{{ b.status_label }}</span>
+    <span class="wait">{% if b.status.waiting %}🕒 {{ fa(b.status.waiting) }} نفر در صف انتظار{% endif %}</span></div>
+  <div class="act">
+    <a class="btn ext" href="{{ bot_link('b_' ~ b.code) }}">{{ 'درخواست امانت' if b.status.state == 'available' else 'رفتن به صف انتظار' }} در تلگرام</a>
+    <button type="button" class="btn inapp hidden" data-code="{{ b.code }}" data-title="{{ b.title }}">{{ 'درخواست امانت' if b.status.state == 'available' else 'رفتن به صف انتظار' }}</button>
+    <a class="up" href="#top">بازگشت به فهرست</a>
+  </div>
+</article>
+{% endfor %}
+</section>
+{% endfor %}
+</main>
+
+<footer>
+  <div class="slogan">{{ cfg.SLOGAN }}</div>
+  <div>{{ cfg.LIBRARY_NAME }} · تأسیس ۱۴۰۵</div>
+  {% if not static %}<div><a href="{{ bot_link() }}">ربات تلگرام کتابخانه</a></div>{% endif %}
+</footer>
+</div>
+
+<div class="sheet-bg" id="sheetBg"></div>
+<div class="sheet" id="sheet" role="dialog" aria-modal="true">
+  <h3 id="sheetTitle"></h3>
+  <div id="sheetForm">
+    <div class="small">چند روز کتاب دستتان باشد؟ مهلت از روز تحویل گرفتن در {{ cfg.PICKUP_PLACE }} حساب می‌شود.</div>
+    <div class="days">{% for d in day_choices %}<label><input type="radio" name="days" value="{{ d }}" {% if d == default_days %}checked{% endif %}>{{ fa(d) }} روز</label>{% endfor %}</div>
+    <div class="small">با تمدید، کل مدت حداکثر {{ fa(cfg.LOAN_MAX_TOTAL_DAYS) }} روز می‌شود.</div>
+    <button type="button" class="btn wide" id="send">ثبت درخواست</button>
+  </div>
+  <div class="result hidden" id="sheetResult"></div>
+  <button type="button" class="btn alt wide" id="close">بستن</button>
+</div>
+
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var STATIC = {{ 'true' if static else 'false' }};
+  var BASE = {{ cfg.BASE_URL | tojson }};
+  var tg = window.Telegram && window.Telegram.WebApp;
+  var inApp = !!(tg && tg.initData);
+
+  $('introToggle').onclick = function () { var i = $('intro'); i.classList.toggle('open'); this.textContent = i.classList.contains('open') ? 'بستن' : 'بیشتر بخوانید…'; };
+
+  // search and "only available" filter
+  function filter() {
+    var q = $('q').value.trim().toLowerCase(), only = $('onlyFree').checked;
+    document.querySelectorAll('article.book').forEach(function (a) {
+      var ok = (!q || a.dataset.search.indexOf(q) >= 0) && (!only || a.dataset.state === 'available');
+      a.classList.toggle('hidden', !ok);
+    });
+    document.querySelectorAll('main section').forEach(function (s) {
+      s.classList.toggle('hidden', !s.querySelector('article.book:not(.hidden)'));
+    });
+    document.querySelectorAll('nav li').forEach(function (li) {
+      li.classList.toggle('hidden', !document.querySelector('article.book[data-code="' + li.dataset.code + '"]:not(.hidden)'));
+    });
+  }
+  $('q').oninput = filter; $('onlyFree').onchange = filter;
+
+  // live shelf status for the downloadable copy of this page
+  if (STATIC && window.fetch) {
+    fetch(BASE + '/api/status', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (data) {
+      document.querySelectorAll('article.book').forEach(function (a) {
+        var s = data[a.dataset.code]; if (!s) return;
+        a.dataset.state = s.state;
+        var b = a.querySelector('.badge'); b.className = 'badge ' + s.state; b.textContent = s.label;
+        a.querySelector('.wait').textContent = s.waiting ? '🕒 ' + s.waiting.toLocaleString('fa-IR') + ' نفر در صف انتظار' : '';
+      });
+      document.querySelectorAll('nav li').forEach(function (li) {
+        var s = data[li.dataset.code]; if (s) li.querySelector('.dot').className = 'dot ' + s.state;
+      });
+      $('live').textContent = '(به‌روز شده از سایت)';
+    }).catch(function () {});
+  }
+
+  if (!inApp) return;
+  tg.ready(); tg.expand();
+  document.querySelectorAll('.btn.ext').forEach(function (e) { e.classList.add('hidden'); });
+  document.querySelectorAll('.btn.inapp').forEach(function (e) { e.classList.remove('hidden'); });
+
+  function post(url, body) {
+    body.initData = tg.initData;
+    return fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+      .then(function (r) { return r.json(); });
+  }
+  post('/api/me', {}).then(function (d) {
+    var box = $('me');
+    if (d.member) { box.textContent = d.member.summary; }
+    else { box.innerHTML = 'هنوز عضو نیستید. <a href="/app/register">فرم عضویت را پر کنید</a>.'; }
+    box.style.display = 'block';
+  }).catch(function () {});
+
+  var current = null;
+  function openSheet(code, title) {
+    current = code;
+    $('sheetTitle').textContent = '«' + title + '»';
+    $('sheetForm').classList.remove('hidden'); $('sheetResult').classList.add('hidden'); $('send').disabled = false;
+    $('sheet').classList.add('on'); $('sheetBg').classList.add('on');
+  }
+  function closeSheet() { $('sheet').classList.remove('on'); $('sheetBg').classList.remove('on'); }
+  document.querySelectorAll('.btn.inapp').forEach(function (b) {
+    b.onclick = function () { openSheet(b.dataset.code, b.dataset.title); };
+  });
+  $('close').onclick = closeSheet; $('sheetBg').onclick = closeSheet;
+  $('send').onclick = function () {
+    var d = document.querySelector('input[name=days]:checked');
+    $('send').disabled = true;
+    post('/api/request', { code: current, days: d ? +d.value : 0 }).then(function (r) {
+      $('sheetForm').classList.add('hidden');
+      var res = $('sheetResult'); res.textContent = r.message || r.detail || 'خطا'; res.classList.remove('hidden');
+      if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred(r.ok ? 'success' : 'error');
+    }).catch(function () {
+      $('send').disabled = false;
+      var res = $('sheetResult'); res.textContent = 'ارتباط برقرار نشد. دوباره امتحان کنید.'; res.classList.remove('hidden');
+    });
+  };
+})();
+</script>
+</body>
+</html>

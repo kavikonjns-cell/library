@@ -1,0 +1,44 @@
+{% extends "admin/base.html" %}
+{% block title %}{{ m.code }}{% endblock %}
+{% block body %}
+<h2>{{ m.code }} · {{ m.name }}</h2>
+<section class="box" style="white-space:pre-line">{{ summary }}</section>
+
+<h2>کارها</h2>
+<p>
+  {% if m.payment_status != 'paid' %}
+  <form method="post" action="/admin/members/{{ m.code }}/approve" style="display:inline"><select name="method">{% for x in cfg.PAYMENT_METHODS %}<option>{{ x }}</option>{% endfor %}</select> <button class="btn sm">تأیید پرداخت ({{ money(m.fee) }})</button></form>
+  <form method="post" action="/admin/members/{{ m.code }}/reject" style="display:inline"><input type="text" name="reason" placeholder="دلیل رد فیش" style="width:auto"> <button class="btn sm gray">رد فیش</button></form>
+  {% endif %}
+  <form method="post" action="/admin/members/{{ m.code }}/renew" style="display:inline"><select name="role">{% for r in cfg.ROLE_FEES %}<option {{ 'selected' if r == m.role }}>{{ r }}</option>{% endfor %}</select> <button class="btn sm alt">تمدید عضویت / عضویت دوباره</button></form>
+  {% if m.status == 'revoked' %}
+  <form method="post" action="/admin/members/{{ m.code }}/activate" style="display:inline"><button class="btn sm">فعال کردن</button></form>
+  {% else %}
+  <form method="post" action="/admin/members/{{ m.code }}/revoke" style="display:inline" onsubmit="return confirm('عضویت باطل شود؟')"><button class="btn sm gray">ابطال عضویت</button></form>
+  {% endif %}
+</p>
+
+<h2>ویرایش مشخصات</h2>
+<form method="post" action="/admin/members/{{ m.code }}/edit" class="grid">
+  <label>نام<input type="text" name="name" value="{{ m.name }}"></label>
+  <label>نقش<select name="role">{% for r in cfg.ROLE_FEES %}<option {{ 'selected' if r == m.role }}>{{ r }}</option>{% endfor %}</select></label>
+  <label>توضیح نقش<input type="text" name="role_other" value="{{ m.role_other }}"></label>
+  <label>تماس<input type="tel" name="phone" value="{{ m.phone }}" dir="ltr"></label>
+  <label>تلگرام<input type="tel" name="tg_phone" value="{{ m.tg_phone }}" dir="ltr"></label>
+  <label>نام کودک<input type="text" name="child_name" value="{{ m.child_name }}"></label>
+  <label>گروه کودک<input type="text" name="child_group" value="{{ m.child_group }}"></label>
+  <label>موضوع‌ها<input type="text" name="topics" value="{{ m.topics }}"></label>
+  <label>پیشنهاد کتاب<input type="text" name="wish" value="{{ m.wish }}"></label>
+  <label>یادداشت<input type="text" name="note" value="{{ m.note }}"></label>
+  <div><button class="btn">ذخیره</button></div>
+</form>
+<p class="small">ثبت‌نام/تمدید: {{ jdate(m.registered_at) }} · اعتبار تا: {{ jdate(m.valid_until) }}{% if m.tg_user_id %} · آی‌دی تلگرام: <span class="mono">{{ m.tg_user_id }}</span>{% endif %}</p>
+
+<h2>امانت‌ها</h2>
+<div class="tbl"><table>
+<tr><th>#</th><th>کتاب</th><th>وضعیت</th><th>تحویل</th><th>مهلت</th><th>بازگشت</th><th>جریمه</th><th>نظر</th></tr>
+{% for l in loans %}<tr><td>{{ fa(l.id) }}</td><td>{{ l.book_code }} «{{ l.title }}»</td><td>{{ {'reserved':'رزرو','active':'در امانت','returned':'بازگشته','lost':'گم‌شده','cancelled':'لغو'}[l.status] }}</td>
+  <td>{{ jdate(l.handed_at) }}</td><td>{{ jdate(l.due_date) }}</td><td>{{ jdate(l.returned_at) }}</td>
+  <td>{% if l.fine %}{{ money(l.fine) }} {{ '✔' if l.fine_paid else '✗' }}{% endif %}</td><td>{{ l.feedback }}</td></tr>{% endfor %}
+</table></div>
+{% endblock %}

@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}پنل مدیریت{% endblock %} · {{ cfg.LIBRARY_NAME }}</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/vazirmatn@33.0.3/Vazirmatn-font-face.css">
+<link rel="stylesheet" href="/static/style.css">
+<style>
+.wrap { max-width: 1100px; }
+.top { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 12px 0; border-bottom: 2px solid var(--g-l); }
+.top img { width: 44px; } .top b { color: var(--g-d); font-size: 18px; }
+.top nav { display: flex; gap: 4px; flex-wrap: wrap; margin-right: auto; }
+.top nav a { text-decoration: none; padding: 4px 10px; border-radius: 10px; font-size: 15px; }
+.top nav a.on, .top nav a:hover { background: var(--g-xl); color: var(--g-d); }
+h2 { color: var(--g-d); font-size: 19px; margin: 22px 0 10px; }
+.flash { margin: 12px 0; padding: 10px 14px; border-radius: 12px; white-space: pre-line; }
+.flash.ok { background: var(--ok-xl); color: var(--ok); } .flash.bad { background: var(--err-xl); color: var(--err); }
+.stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.stat { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 10px 14px; }
+.stat .n { font-size: 24px; color: var(--g-d); } .stat .l { font-size: 13px; color: var(--muted); }
+.tbl { width: 100%; overflow-x: auto; background: var(--card); border: 1px solid var(--line); border-radius: 14px; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th, td { text-align: right; padding: 7px 10px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+th { background: var(--g-xl); color: var(--g-d); font-weight: normal; white-space: nowrap; }
+tr.late td { background: var(--err-xl); }
+td form { display: inline-flex; gap: 4px; margin: 0; align-items: center; }
+td select, td input[type=text] { min-height: 34px; padding: 2px 8px; font-size: 14px; width: auto; }
+.btn.sm { min-height: 34px; padding: 0 12px; font-size: 14px; border-radius: 17px; }
+.btn.gray { background: var(--line); color: var(--ink); }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+.searchbar { display: flex; gap: 8px; margin: 10px 0; } .searchbar input { flex: 1; }
+.pill { display: inline-block; font-size: 12.5px; border-radius: 8px; padding: 0 8px; background: var(--line); }
+.pill.ok { background: var(--ok-xl); color: var(--ok); } .pill.bad { background: var(--err-xl); color: var(--err); }
+.pill.warn { background: var(--warn-xl); color: var(--warn); }
+.mono { direction: ltr; unicode-bidi: isolate; font-family: Tahoma, sans-serif; }
+details.add { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 10px 14px; margin: 10px 0; }
+details.add summary { cursor: pointer; color: var(--g-d); }
+</style>
+</head>
+<body>
+<div class="wrap">
+{% if not hide_nav %}
+<div class="top">
+  <img src="/static/logo.png" alt=""><b>{{ cfg.LIBRARY_NAME }}</b>
+  <nav>
+    {% set p = request.url.path %}
+    <a href="/admin" class="{{ 'on' if p == '/admin' }}">داشبورد</a>
+    <a href="/admin/loans" class="{{ 'on' if p.startswith('/admin/loans') }}">امانت‌ها</a>
+    <a href="/admin/members" class="{{ 'on' if p.startswith('/admin/members') }}">اعضا</a>
+    <a href="/admin/books" class="{{ 'on' if p.startswith('/admin/books') }}">کتاب‌ها</a>
+    <a href="/admin/payments" class="{{ 'on' if p.startswith('/admin/payments') }}">حسابداری</a>
+    <a href="/" target="_blank">سایت</a>
+    <a href="/admin/logout">خروج</a>
+  </nav>
+</div>
+{% endif %}
+{% if flash %}<div class="flash {{ 'ok' if flash.ok else 'bad' }}">{{ flash.msg }}</div>{% endif %}
+{% block body %}{% endblock %}
+</div>
+</body>
+</html>
