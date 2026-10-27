@@ -32,28 +32,20 @@ of Esfand (from 1 Dey: end of Esfand next year); fees by role 600k / 800k / 1M t
 - `scripts/import_books.py` — re-import books from the library Excel + old HTML list.
 - Tests: `pip install -r requirements-dev.txt && python -m pytest` (18 tests, all passing).
 
-## Status (end of first session)
-- Code complete and tested locally; bot tested live against Telegram (connects, commands registered).
-- Code lives on branch `claude/determined-carson-3c3fay` of `sub7mehrdad-a11y/kavikonj`
-  (draft PR #1 into `main`; `main` only has `.gitignore`). The owner now wants the project in
-  **`kavikonjns-cell/library`** — push the full history there as `main`.
-- NOT deployed yet. There is no server.
-
-## Agreed next step: deploy on PythonAnywhere (free "Beginner" account)
-The owner chose PythonAnywhere free over a paid VPS and over a GitHub-Actions-only version
-(Actions would answer only every 5–15 min and has no admin panel). Plan:
-1. Owner creates the account and gives: username, PythonAnywhere API token, their Telegram numeric
-   id (from @userinfobot) for `ADMIN_IDS`, and an admin panel password.
-2. Free accounts: WSGI is the supported way (ASGI is experimental) and outbound traffic goes through
-   a proxy allowlist. So switch the bot from long polling to **webhook** mode, served by the web app
-   (e.g. a Flask/WSGI entry point, or confirm ASGI works), and send Telegram API calls through the
-   proxy. Verify first that api.telegram.org is reachable from the free account.
-3. Daily job → PythonAnywhere scheduled task (free accounts get one daily task).
-4. Auto-deploy: on push to `main`, a GitHub Action tells the server to `git pull` and reload.
-   Keep the SQLite file (`data/kavikonj.db`) outside what deploys overwrite.
-5. Secrets (bot token, API token, admin password, SECRET_KEY) only in the server `.env` /
-   GitHub Actions secrets — never commit them; the repos are public.
-6. Free web apps must be renewed every 3 months (a button in the PythonAnywhere Web tab).
+## Status / deployment (live)
+- Repo: `kavikonjns-cell/library` (main). Everything belongs to the library's account (kavikonjns@gmail.com).
+- Web + bot: Render free web service `kavikonj` (Frankfurt) → https://kavikonj.onrender.com,
+  auto-deploys on push to `main`. Start: `uvicorn app.main:app`, `BOT_MODE=webhook`; the app registers the
+  Telegram webhook (`/tg/<WEBHOOK_SECRET>`) on startup. Free instances sleep after 15 min idle (first reply slow).
+- Data: Supabase Postgres (project ref `shahujaburrzvweeuuqc`, Frankfurt) via `DATABASE_URL` (transaction
+  pooler, port 6543).
+- Daily check: Supabase pg_cron job `kavikonj-daily` at 05:30 UTC (09:00 Tehran) calls
+  `/cron/daily?key=<WEBHOOK_SECRET>` (also keeps the free Supabase project active).
+- Secrets (bot token, DATABASE_URL, ADMIN_PASSWORD, SECRET_KEY, WEBHOOK_SECRET) live only in Render env vars.
+- Librarian Telegram id (ADMIN_IDS): 6288109972. Admin panel: /admin.
+- An earlier PythonAnywhere deployment (`kavikonj.pythonanywhere.com`) is disabled: free accounts cannot
+  reach api.telegram.org. `wsgi.py` and `TG_PROXY` remain for WSGI hosts.
+- Tests: `python -m pytest` (SQLite) and `TEST_DATABASE_URL=postgresql://... python -m pytest` (Postgres).
 
 ## Owner preferences / context
 - Owner also runs content bots (repo `heraderm-blog-agent`) on GitHub Actions schedules.
