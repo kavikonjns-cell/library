@@ -1,0 +1,36 @@
+{% extends "member/base.html" %}
+{% block title %}{{ p.name }} · {{ cfg.CLUB_NAME }}{% endblock %}
+{% block body %}
+{% set s = p.stats %}
+<header>
+  <h1>📖 {{ p.name }}</h1>
+  <p class="sub">عضو {{ cfg.CLUB_NAME }}{% if p.member.club_joined_at %} از {{ jdate(p.member.club_joined_at) }}{% endif %}</p>
+</header>
+<section class="box">
+  <div class="statrow">
+    <div><b>🔥 {{ fa(s.streak) }}</b><span>روز پیاپی</span></div>
+    <div><b>{{ fa(s.books_finished) }}</b><span>کتاب تمام‌شده</span></div>
+    <div><b>{{ hours(s.total_minutes) }}</b><span>کل مطالعه</span></div>
+  </div>
+  {% if s.reading %}<p>📖 الان می‌خواند: <b>«{{ s.reading }}»</b></p>{% endif %}
+  <div class="badge-list">{% for key in s.badges if key in badges %}<span>{{ badges[key][0] }}</span>{% endfor %}</div>
+</section>
+{% if p.topics %}
+<section class="box">
+  <h2>موضوع‌های مورد علاقه</h2>
+  {% set mx = p.topics[0][1] %}
+  {% for t, n in p.topics %}
+  <div style="margin:6px 0"><div class="small">{{ t }} · {{ fa(n) }} کتاب</div>
+    <div style="background:var(--g-xl);border-radius:6px;height:10px"><div style="background:var(--g);border-radius:6px;height:10px;width:{{ (100 * n / mx) | round }}%"></div></div></div>
+  {% endfor %}
+</section>
+{% endif %}
+<section class="box">
+  <h2>کتاب‌های تمام‌شده</h2>
+  {% for b in p.books %}
+  <div class="list-row"><b>«{{ b.title }}»</b> <span class="small">{{ b.author }} · {{ jdate(b.returned_at) }}</span>
+    {% if b.rating %}<span class="stars">{{ '★' * b.rating }}</span>{% endif %}
+    {% if b.feedback %}<div class="review">{{ b.feedback }}</div>{% endif %}</div>
+  {% else %}<p class="small">هنوز کتابی تمام نشده است.</p>{% endfor %}
+</section>
+{% endblock %}

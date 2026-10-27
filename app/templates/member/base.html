@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}{{ cfg.LIBRARY_NAME }}{% endblock %}</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/vazirmatn@33.0.3/Vazirmatn-font-face.css">
+<link rel="stylesheet" href="/static/style.css">
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+</head>
+<body>
+<div class="wrap">
+{% include "member/topbar.html" %}
+{% if flash %}<div class="flash {{ 'ok' if flash.ok else 'bad' }}">{{ flash.msg }}</div>{% endif %}
+{% block body %}{% endblock %}
+<footer>
+  <div class="slogan">{{ cfg.SLOGAN }}</div>
+  <div>{{ cfg.LIBRARY_NAME }} · تأسیس ۱۴۰۵ · <a href="{{ bot_link() }}">ربات تلگرام</a></div>
+</footer>
+</div>
+<script>
+(function () {
+  var tg = window.Telegram && window.Telegram.WebApp;
+  if (tg && tg.initData) { tg.ready(); tg.expand(); }
+})();
+</script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

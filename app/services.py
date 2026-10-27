@@ -25,6 +25,7 @@ class Notice:
     member_code: str | None = None     # deliver to this member's Telegram
     admins: bool = False               # deliver to every librarian
     buttons: list[list[Button]] = field(default_factory=list)
+    inbox: bool = True                 # also keep it in the member's inbox on the website
 
 
 @dataclass
@@ -233,6 +234,21 @@ def attach_receipt(member_code: str, file_id: str) -> Result:
         m = conn.execute("SELECT * FROM members WHERE code = ?", (member_code,)).fetchone()
     return Result(True, "🧾 فیش شما دریافت شد و برای مسئول کتابخانه فرستاده شد. بعد از تأیید خبرتان می‌کنیم.",
                   data={"member": dict(m)})
+
+
+def receipt_review(member) -> tuple[str, list[list[Button]]]:
+    """Caption and librarian buttons for a receipt a member sent (fine first, then membership fee)."""
+    with connect() as conn:
+        fine = conn.execute("SELECT * FROM loans WHERE member_code = ? AND fine > 0 AND fine_paid = 0"
+                            " AND status IN ('returned','lost') ORDER BY id LIMIT 1", (member["code"],)).fetchone()
+    if fine:
+        return (f"🧾 فیش جریمه از {member['code']} ({member['name']})\nامانت #{fa(fine['id'])} · مبلغ {money(fine['fine'])}",
+                [[("✅ جریمه تسویه شد", f"fine_ok:{fine['id']}")]])
+    if member["payment_status"] != "paid":
+        return ((f"🧾 فیش حق عضویت از {member['code']} · {member['name']}\nنقش: {member['role']} · "
+                 f"مبلغ: {money(member['fee'])}\nتماس: {fa(member['phone'])}"),
+                [[("✅ تأیید پرداخت", f"pay_ok:{member['code']}"), ("❌ رد فیش", f"pay_no:{member['code']}")]])
+    return f"📎 فایل از {member['code']} ({member['name']})", []
 
 
 def approve_payment(member_code: str, method: str = "کارت‌به‌کارت", by: str = "",
@@ -475,12 +491,14 @@ def handover(loan_id: int, by: str = "", on: dt.date | None = None) -> Result:
         due = on + dt.timedelta(days=loan["requested_days"])
         conn.execute("UPDATE loans SET status = 'active', handed_at = ?, due_date = ?, handed_by = ? WHERE id = ?",
                      (on.isoformat(), due.isoformat(), by, loan_id))
-    return Result(True, f"امانت #{fa(loan_id)} شروع شد؛ مهلت بازگشت {to_jalali(due)}.", [Notice(
-        member_code=loan["member_code"],
-        text=(f"📗 کتاب «{loan['title']}» به شما تحویل داده شد. مطالعۀ خوبی داشته باشید!\n\n"
-              f"📅 مهلت بازگشت: {to_jalali(due)}\n"
-              f"برای تمدید، پیش از پایان مهلت از دکمۀ «🔁 تمدید امانت» استفاده کنید."))],
-        {"due_date": due.isoformat()})
+        in_club = conn.execute("SELECT club FROM members WHERE code = ?", (loan["member_code"],)).fetchone()[0]
+    text = (f"📗 کتاب «{loan['title']}» به شما تحویل داده شد. مطالعۀ خوبی داشته باشید!\n\n"
+            f"📅 مهلت بازگشت: {to_jalali(due)}\n"
+            f"برای تمدید، پیش از پایان مهلت از دکمۀ «🔁 تمدید امانت» استفاده کنید.")
+    if in_club:
+        text += f"\n\n📖 هر روز که از این کتاب خواندید، زمانش را ثبت کنید تا در {config.CLUB_NAME} حساب شود."
+    return Result(True, f"امانت #{fa(loan_id)} شروع شد؛ مهلت بازگشت {to_jalali(due)}.",
+                  [Notice(member_code=loan["member_code"], text=text)], {"due_date": due.isoformat()})
 
 
 def direct_loan(book_code: str, member_code: str, days: int | None = None, by: str = "",
@@ -550,6 +568,7 @@ def return_book(loan_id: int, condition: str = "سالم", by: str = "", on: dt.
             conn.execute("UPDATE books SET active = 0, note = TRIM(note || ' ' || ?) WHERE code = ?",
                          (f"[{to_jalali(on)}: {condition} در امانت #{loan_id}؛ منتظر نسخۀ جایگزین]", loan["book_code"]))
         notices = _process_waitlist(conn, loan["base_code"], on)
+        in_club = conn.execute("SELECT club FROM members WHERE code = ?", (loan["member_code"],)).fetchone()[0]
 
     if lost or condition == "آسیب جدی":
         member_text = (f"کتاب «{loan['title']}» به عنوان «{condition}» ثبت شد. طبق قوانین، لطفاً نسخه‌ای "
@@ -560,8 +579,12 @@ def return_book(loan_id: int, condition: str = "سالم", by: str = "", on: dt.
             member_text += (f"\n\n⏰ کتاب {fa(days_late)} روز دیر برگشت؛ جریمۀ دیرکرد: {money(fine)}.\n"
                             f"لطفاً جریمه را به کارت {fa(_card())} واریز کنید و عکس فیش را بفرستید."
                             f" تا جریمه تسویه نشود، کتاب تازه امانت داده نمی‌شود.")
-        member_text += "\n\nاگر دوست دارید، نظرتان دربارۀ کتاب را همین‌جا برایمان بنویسید. 💬"
-    notices.insert(0, Notice(member_code=loan["member_code"], text=member_text))
+        member_text += "\n\nاگر دوست دارید، نظرتان دربارۀ کتاب را برایمان بنویسید. 💬"
+    buttons = [] if lost or condition == "آسیب جدی" else [[("✍️ نوشتن نظر دربارۀ کتاب", "fb")]]
+    if buttons and in_club:
+        member_text += "\n\n📖 کتاب را تا آخر خواندید؟"
+        buttons.insert(0, [("✅ بله، تمامش کردم", f"fin:{loan_id}:1"), ("هنوز نه", f"fin:{loan_id}:0")])
+    notices.insert(0, Notice(member_code=loan["member_code"], text=member_text, buttons=buttons))
     msg = f"کتاب «{loan['title']}» برگشت."
     if fine:
         msg += f" تأخیر {fa(days_late)} روز؛ جریمه {money(fine)}."
@@ -733,6 +756,20 @@ def member_summary(member_code: str, on: dt.date | None = None) -> str:
                              (member_code,)).fetchone()[0]
         lines.append(f"\nتعداد کل امانت‌ها: {fa(total)}")
     return "\n".join(lines)
+
+
+def add_inbox(member_code: str, text: str, on: dt.datetime | None = None) -> None:
+    stamp = (on or dt.datetime.now()).isoformat(timespec="seconds")
+    with connect() as conn:
+        conn.execute("INSERT INTO inbox (member_code, text, created_at) VALUES (?, ?, ?)", (member_code, text, stamp))
+
+
+def inbox(member_code: str, limit: int = 30) -> list[dict]:
+    with connect() as conn:
+        rows = [dict(r) for r in conn.execute(
+            "SELECT * FROM inbox WHERE member_code = ? ORDER BY id DESC LIMIT ?", (member_code, limit))]
+        conn.execute("UPDATE inbox SET seen = 1 WHERE member_code = ? AND seen = 0", (member_code,))
+    return rows
 
 
 def save_feedback(member_code: str, text: str) -> bool:

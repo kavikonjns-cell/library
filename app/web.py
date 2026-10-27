@@ -12,7 +12,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 
-from . import config, exporter, jalali, notify, services
+from . import club, config, exporter, jalali, member_web, notify, services
 from .db import connect, upsert_books
 from .telegram_auth import validate_init_data
 
@@ -29,6 +29,7 @@ def create_app(lifespan=None) -> FastAPI:
     app.add_middleware(SessionMiddleware, secret_key=config.SECRET_KEY, max_age=14 * 86400, same_site="lax")
     app.mount("/static", StaticFiles(directory=HERE / "static"), name="static")
     _public_routes(app)
+    member_web.member_routes(app, templates)
     _api_routes(app)
     _admin_routes(app)
     return app
@@ -64,6 +65,7 @@ def _public_routes(app: FastAPI) -> None:
     async def catalog_page(request: Request):
         groups = grouped_catalog()
         return templates.TemplateResponse(request, "catalog.html", {
+            "member": member_web.current_member(request), "reviews": club.all_reviews(),
             "groups": groups, "today": jalali.to_jalali(jalali.today()),
             "day_choices": config.LOAN_DAY_CHOICES, "default_days": min(config.LOAN_DEFAULT_DAYS, config.LOAN_MAX_INITIAL_DAYS),
         })
@@ -102,6 +104,15 @@ def _public_routes(app: FastAPI) -> None:
         await notify.deliver(notices)
         return {"ok": True, "notices": len(notices)}
 
+    @app.api_route("/cron/evening", methods=["GET", "POST"])
+    async def cron_evening(key: str = ""):
+        """Evening reminder for club members to log today's reading."""
+        if not config.WEBHOOK_SECRET or not hmac.compare_digest(key, config.WEBHOOK_SECRET):
+            raise HTTPException(403)
+        notices = club.evening_reminders()
+        await notify.deliver(notices)
+        return {"ok": True, "notices": len(notices)}
+
     @app.get("/health")
     async def health():
         return {"ok": True}
@@ -129,8 +140,10 @@ def _api_routes(app: FastAPI) -> None:
 
     @app.post("/api/me")
     async def me(request: Request):
-        user, _ = await _tg_user(request)
-        m = services.get_member_by_tg(user["id"])
+        m = member_web.current_member(request)
+        if not m:
+            user, _ = await _tg_user(request)
+            m = member_web.sign_in(request, user["id"])  # inside Telegram: sign in to the website too
         if not m:
             return {"member": None}
         return {"member": {"code": m["code"], "name": m["name"],
@@ -148,10 +161,15 @@ def _api_routes(app: FastAPI) -> None:
 
     @app.post("/api/request")
     async def request_book(request: Request):
-        user, body = await _tg_user(request)
-        m = services.get_member_by_tg(user["id"])
+        m = member_web.current_member(request)
+        if m:
+            body = await request.json()
+        else:
+            user, body = await _tg_user(request)
+            m = services.get_member_by_tg(user["id"])
         res = services.request_book(m["code"] if m else None, str(body.get("code", "")), int(body.get("days") or 0))
-        await notify.send(user["id"], res.message)
+        if m and m["tg_user_id"]:
+            await notify.send(m["tg_user_id"], res.message)
         await notify.deliver(res.notices)
         return {"ok": res.ok, "message": res.message, **res.data}
 
@@ -401,6 +419,27 @@ def _admin_routes(app: FastAPI) -> None:
                          (date.isoformat(), f.get("category", ""), direction, amount, f.get("member_code", "").upper(),
                           f.get("book_code", "").upper(), f.get("method", ""), f.get("ref", ""), f.get("description", "")))
         return _back(request, "سطر حسابداری ثبت شد.")
+
+    # --- club & suggestions
+    @app.get("/admin/club", response_class=HTMLResponse)
+    async def admin_club(request: Request):
+        _guard(request)
+        sugg = _rows("SELECT s.*, m.name FROM suggestions s JOIN members m ON m.code = s.member_code"
+                     " ORDER BY s.status = 'new' DESC, s.id DESC LIMIT 300")
+        members = _rows("SELECT * FROM members WHERE club = 1 ORDER BY seq")
+        today = jalali.today()
+        for mm in members:
+            mm["stats"] = club.stats(mm["code"], today)
+        return _render(request, "admin/club.html", sugg=sugg, members=members, hours=club.hours)
+
+    @app.post("/admin/suggestions/{sid}/{status}")
+    async def suggestion_status(request: Request, sid: int, status: str):
+        _guard(request)
+        if status not in ("new", "bought", "rejected"):
+            raise HTTPException(404)
+        with connect() as conn:
+            conn.execute("UPDATE suggestions SET status = ? WHERE id = ?", (status, sid))
+        return _back(request, "وضعیت پیشنهاد به‌روز شد.")
 
     # --- export
     @app.get("/admin/export.xlsx")

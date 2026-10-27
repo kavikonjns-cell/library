@@ -102,7 +102,56 @@ CREATE TABLE IF NOT EXISTS payments (
     ref         TEXT DEFAULT '',
     description TEXT DEFAULT ''
 );
+
+-- Readers' club («کلوپ کتاب‌خوان‌ها»): daily reading log, one row per member per day.
+CREATE TABLE IF NOT EXISTS reading_logs (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    member_code TEXT NOT NULL REFERENCES members(code),
+    day         TEXT NOT NULL,             -- ISO date (Tehran)
+    loan_id     INTEGER,                   -- the borrowed book read that day (NULL on a leave day)
+    minutes     INTEGER NOT NULL DEFAULT 0,
+    is_leave    INTEGER NOT NULL DEFAULT 0, -- «مرخصی»: keeps the streak without reading
+    UNIQUE (member_code, day)
+);
+
+CREATE TABLE IF NOT EXISTS badges (
+    member_code TEXT NOT NULL REFERENCES members(code),
+    badge       TEXT NOT NULL,
+    earned_at   TEXT NOT NULL,
+    PRIMARY KEY (member_code, badge)
+);
+
+-- Messages shown in the member's inbox on the website (also sent through the bot).
+CREATE TABLE IF NOT EXISTS inbox (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    member_code TEXT NOT NULL REFERENCES members(code),
+    text        TEXT NOT NULL,
+    created_at  TEXT NOT NULL,
+    seen        INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS suggestions (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    member_code TEXT NOT NULL REFERENCES members(code),
+    title       TEXT NOT NULL,
+    created_at  TEXT NOT NULL,
+    status      TEXT NOT NULL DEFAULT 'new'  -- new | bought | rejected
+);
+
+-- Website sign-in through the bot: the site shows a code, the member confirms it in Telegram.
+CREATE TABLE IF NOT EXISTS login_tokens (
+    nonce       TEXT PRIMARY KEY,
+    tg_user_id  BIGINT,
+    created_at  TEXT NOT NULL
+);
 """
+
+# Columns added after the first release; init_db adds them to existing databases.
+MIGRATIONS = {
+    "members": [("club", "INTEGER NOT NULL DEFAULT 0"), ("club_joined_at", "TEXT DEFAULT ''"),
+                ("public_profile", "INTEGER NOT NULL DEFAULT 1")],
+    "loans": [("finished", "INTEGER NOT NULL DEFAULT 0"), ("rating", "INTEGER NOT NULL DEFAULT 0")],
+}
 
 
 def _connect(path: Path) -> sqlite3.Connection:
@@ -226,9 +275,25 @@ def connect():
         conn.close()
 
 
+def _columns(conn, table: str) -> set[str]:
+    if using_postgres():
+        rows = conn.execute("SELECT column_name FROM information_schema.columns WHERE table_name = ?", (table,))
+        return {r[0] for r in rows}
+    return {r[1] for r in conn.execute(f"PRAGMA table_info({table})")}
+
+
+def _migrate(conn) -> None:
+    for table, cols in MIGRATIONS.items():
+        have = _columns(conn, table)
+        for name, ddl in cols:
+            if name not in have:
+                conn.execute(f"ALTER TABLE {table} ADD COLUMN {name} {ddl}")
+
+
 def init_db(seed: bool = True) -> None:
     with connect() as conn:
         conn.executescript(PG_SCHEMA if using_postgres() else SCHEMA)
+        _migrate(conn)
         empty = conn.execute("SELECT COUNT(*) FROM books").fetchone()[0] == 0
     if seed and empty:
         seed_file = config.ROOT / "data" / "seed" / "books.json"

@@ -11,7 +11,7 @@ from telegram import (BotCommand, InlineKeyboardButton, InlineKeyboardMarkup, Ke
 from telegram.ext import (Application, CallbackQueryHandler, CommandHandler, ContextTypes, MessageHandler,
                           filters)
 
-from . import config, notify, services
+from . import auth, club, config, notify, services
 from .db import connect
 from .jalali import en, fa, money, to_jalali, today as jtoday
 
@@ -26,6 +26,9 @@ BTN_EXTEND = "🔁 تمدید امانت"
 BTN_RULES = "ℹ️ قوانین"
 BTN_REGISTER = "📝 فرم عضویت"
 BTN_LINK = "🔗 قبلاً عضو شده‌ام"
+BTN_CLUB = "📖 کلوپ کتاب‌خوان‌ها"
+BTN_LOG = "✍️ ثبت مطالعهٔ امروز"
+BTN_SITE = "🌐 ورود به سایت"
 
 RULES_TEXT = (
     "📜 قوانین کتابخانه کاوی کنج\n\n"
@@ -64,7 +67,9 @@ def main_keyboard(member) -> ReplyKeyboardMarkup:
         return KeyboardButton(label, web_app=WebAppInfo(config.BASE_URL + path)) if _https() else KeyboardButton(label)
 
     if member:
-        rows = [[web(BTN_CATALOG, "/")], [KeyboardButton(BTN_ME), KeyboardButton(BTN_EXTEND)], [KeyboardButton(BTN_RULES)]]
+        third = BTN_LOG if member["club"] else BTN_CLUB
+        rows = [[web(BTN_CATALOG, "/")], [KeyboardButton(BTN_ME), KeyboardButton(BTN_EXTEND)],
+                [KeyboardButton(third)], [KeyboardButton(BTN_SITE), KeyboardButton(BTN_RULES)]]
     else:
         rows = [[web(BTN_REGISTER, "/app/register")], [web(BTN_CATALOG, "/")],
                 [KeyboardButton(BTN_LINK), KeyboardButton(BTN_RULES)]]
@@ -97,6 +102,14 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if member and member["tg_username"] != (user.username or ""):
         with connect() as conn:
             conn.execute("UPDATE members SET tg_username = ? WHERE code = ?", (user.username or "", member["code"]))
+
+    if payload.startswith("login_"):
+        if not member:
+            return await _reply(update, "برای ورود به سایت، اول باید در همین ربات عضو کتابخانه شوید.",
+                                keyboard=main_keyboard(None))
+        ok = auth.approve(payload[6:], user.id)
+        return await _reply(update, "✅ ورود تأیید شد. به صفحهٔ سایت برگردید؛ خودکار وارد می‌شوید." if ok
+                            else "این کد ورود منقضی شده است. در سایت دوباره «ورود با تلگرام» را بزنید.")
 
     greeting = (f"سلام {user.first_name or ''} 🌿\nبه ربات {config.LIBRARY_NAME} خوش آمدید.\n\n")
     if member:
@@ -150,7 +163,10 @@ async def me(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         for w in conn.execute("SELECT w.base_code, b.title FROM waitlist w JOIN books b ON b.code = w.base_code"
                               " WHERE w.member_code = ? AND w.status = 'waiting'", (member["code"],)).fetchall():
             buttons.append([(f"خروج از صف «{w['title'][:25]}»", f"leave:{w['base_code']}")])
-    await _reply(update, services.member_summary(member["code"]), buttons)
+    text = services.member_summary(member["code"])
+    if member["club"]:
+        text += "\n\n" + club.summary(member["code"])
+    await _reply(update, text, buttons)
 
 
 async def extend(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -196,9 +212,20 @@ async def on_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             return await _reply(update, "فرم عضویت: " + config.BASE_URL + "/app/register\n"
                                 "فرم را پر کنید و متن آماده‌شده را همین‌جا بفرستید.")
         return await catalog_link(update, context)
+    if text == BTN_CLUB:
+        return await club_home(update, context)
+    if text == BTN_LOG:
+        return await log_prompt(update, context)
+    if text == BTN_SITE:
+        return await site_link(update, context)
     if text == BTN_LINK:
         context.user_data["linking"] = True
         return await _reply(update, "کد عضویت و شمارۀ تماسی را که در فرم نوشته‌اید بفرستید، مثلاً:\nM-07 09121234567")
+
+    if context.user_data.pop("logging", False) and member and en(text).strip().isdigit():
+        res = club.log_reading(member["code"], int(en(text).strip()))
+        await _reply(update, res.message)
+        return await _deliver(res)
 
     if context.user_data.pop("feedback", False) and member:
         ok = services.save_feedback(member["code"], text)
@@ -255,26 +282,73 @@ async def on_receipt(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         await _reply(update, "اول فرم عضویت را پر کنید؛ بعد عکس فیش را بفرستید.")
         return
     file_id = msg.photo[-1].file_id if msg.photo else msg.document.file_id
-    with connect() as conn:
-        fine = conn.execute("SELECT * FROM loans WHERE member_code = ? AND fine > 0 AND fine_paid = 0"
-                            " AND status IN ('returned','lost') ORDER BY id LIMIT 1", (member["code"],)).fetchone()
-    if fine:
-        caption = f"🧾 فیش جریمه از {member['code']} ({member['name']})\nامانت #{fa(fine['id'])} · مبلغ {money(fine['fine'])}"
-        buttons = [[("✅ جریمه تسویه شد", f"fine_ok:{fine['id']}")]]
-    elif member["payment_status"] != "paid":
+    caption, buttons = services.receipt_review(member)
+    if member["payment_status"] != "paid":
         services.attach_receipt(member["code"], file_id)
-        caption = (f"🧾 فیش حق عضویت از {member['code']} · {member['name']}\nنقش: {member['role']} · "
-                   f"مبلغ: {money(member['fee'])}\nتماس: {fa(member['phone'])}")
-        buttons = [[("✅ تأیید پرداخت", f"pay_ok:{member['code']}"), ("❌ رد فیش", f"pay_no:{member['code']}")]]
-    else:
-        caption = f"📎 فایل از {member['code']} ({member['name']})"
-        buttons = None
     for admin_id in config.ADMIN_IDS:
         try:
             await msg.copy(admin_id, caption=caption, reply_markup=_markup(buttons))
         except Exception:
             log.exception("could not forward receipt to %s", admin_id)
     await _reply(update, "🧾 دریافت شد و برای مسئول کتابخانه فرستاده شد. بعد از بررسی خبرتان می‌کنیم.")
+
+
+# -------------------------------------------------------------------- club
+
+async def club_home(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    member = services.get_member_by_tg(update.effective_user.id)
+    if not member:
+        return await _reply(update, "اول در کتابخانه عضو شوید.", keyboard=main_keyboard(None))
+    if not member["club"]:
+        return await _reply(update, (
+            f"📖 {config.CLUB_NAME}\n\n"
+            "جایی برای کسانی که می‌خواهند کتاب‌خواندن را عادت هر روزشان کنند:\n"
+            "• هر روز زمان مطالعهٔ کتاب امانتی‌تان را ثبت می‌کنید (با یک دکمه)\n"
+            "• روزهای پیاپی مطالعه‌تان «زنجیره» می‌سازد و نشان می‌گیرید\n"
+            "• کتاب‌های تمام‌شده و نظرهایتان در صفحهٔ شخصی‌تان جمع می‌شود\n"
+            "• جدول برترین‌های کلوپ را در سایت می‌بینید\n\n"
+            "عضویت در کلوپ اختیاری و رایگان است؛ امانت گرفتن کتاب بدون آن هم مثل همیشه ممکن است."),
+            [[("✅ عضو کلوپ می‌شوم", "club:join")]])
+    pub = "🙈 پنهان کردن نام من" if member["public_profile"] else "👁 نمایش نام من در کلوپ"
+    await _reply(update, club.summary(member["code"]), [
+        [("✍️ ثبت مطالعهٔ امروز", "club:log"), ("🏆 برترین‌ها", "club:top")],
+        [(pub, f"club:pub:{0 if member['public_profile'] else 1}"), ("خروج از کلوپ", "club:leave")]])
+
+
+async def log_prompt(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    member = services.get_member_by_tg(update.effective_user.id)
+    if not member or not member["club"]:
+        return await club_home(update, context)
+    s = club.stats(member["code"])
+    if config.CLUB_ONLY_LIBRARY_BOOKS and not s["reading"]:
+        return await _reply(update, "فعلاً فقط مطالعهٔ کتاب امانتی ثبت می‌شود و الان کتابی در دست ندارید.")
+    done = f"\nتا حالا امروز: {club.hours(s['today'])}" if s["today"] else ""
+    await _reply(update, f"امروز چقدر از «{s['reading']}» خواندید؟{done}\n(عدد دیگری هم می‌توانید بفرستید، مثلاً ۲۵)",
+                 club.log_buttons())
+    context.user_data["logging"] = True
+
+
+async def top(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    rows = club.leaderboard(limit=10)
+    if not rows:
+        return await _reply(update, "هنوز کسی در کلوپ مطالعه ثبت نکرده است. اولین نفر باشید! 🌱")
+    medals = ["🥇", "🥈", "🥉"]
+    lines = [f"🏆 برترین‌های {config.CLUB_NAME}"]
+    for i, r in enumerate(rows):
+        lines.append(f"{medals[i] if i < 3 else fa(i + 1) + '.'} {r['name']} · 🔥 {fa(r['streak'])} روز · "
+                     f"این ماه {club.hours(r['month_minutes'])}" + (f"\n     📖 {r['reading']}" if r["reading"] else ""))
+    lines.append(f"\n{config.BASE_URL}/club")
+    await _reply(update, "\n".join(lines))
+
+
+async def site_link(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    member = services.get_member_by_tg(update.effective_user.id)
+    if not member:
+        return await _reply(update, "اول در کتابخانه عضو شوید.")
+    link = f"{config.BASE_URL}/login/t/{auth.new_nonce(update.effective_user.id)}"
+    await update.effective_message.reply_text(
+        "🌐 با این دکمه وارد صفحهٔ شخصی‌تان در سایت می‌شوید (لینک یک‌بار مصرف است و ۱۰ دقیقه اعتبار دارد):",
+        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("ورود به سایت", url=link)]]))
 
 
 # ---------------------------------------------------------------- callbacks
@@ -308,6 +382,33 @@ async def on_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     if action == "leave" and member:
         res = services.leave_waitlist(member["code"], arg)
         return await _reply(update, res.message)
+    if action == "log" and member:
+        res = club.log_leave(member["code"]) if arg == "leave" else club.log_reading(member["code"], int(arg))
+        await q.edit_message_reply_markup(None)
+        await _reply(update, res.message)
+        return await _deliver(res)
+    if action == "fin" and member:
+        loan_id, _, yes = arg.partition(":")
+        res = club.mark_finished(member["code"], int(loan_id), yes == "1")
+        await q.edit_message_reply_markup(None)
+        await _reply(update, res.message)
+        return await _deliver(res)
+    if action == "club" and member:
+        sub, _, val = arg.partition(":")
+        if sub == "join":
+            res = club.join(member["code"])
+            await q.edit_message_reply_markup(None)
+            return await _reply(update, res.message, keyboard=main_keyboard(services.get_member(member["code"])))
+        if sub == "leave":
+            res = club.leave(member["code"])
+            return await _reply(update, res.message, keyboard=main_keyboard(services.get_member(member["code"])))
+        if sub == "pub":
+            return await _reply(update, club.set_public(member["code"], val == "1").message)
+        if sub == "log":
+            return await log_prompt(update, context)
+        if sub == "top":
+            return await top(update, context)
+        return
     if action == "fb":
         context.user_data["feedback"] = True
         return await _reply(update, "نظرتان دربارۀ کتاب را بنویسید و بفرستید:")
@@ -328,10 +429,6 @@ async def on_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     elif action == "ret":
         loan_id, _, idx = arg.partition(":")
         res = services.return_book(int(loan_id), config.RETURN_CONDITIONS[int(idx or 0)], by)
-        if res.ok:
-            for n in res.notices:
-                if n.member_code and not n.buttons and "ممنون از شما" in n.text:
-                    n.buttons = [[("✍️ نوشتن نظر دربارۀ کتاب", "fb")]]
     elif action == "fine_ok":
         res = services.mark_fine_paid(int(arg))
     else:
@@ -487,6 +584,10 @@ async def setup_bot(bot) -> None:
         BotCommand("me", "وضعیت عضویت و امانت من"),
         BotCommand("books", "فهرست کتاب‌ها"),
         BotCommand("extend", "تمدید امانت"),
+        BotCommand("club", "کلوپ کتاب‌خوان‌ها"),
+        BotCommand("log", "ثبت مطالعهٔ امروز"),
+        BotCommand("top", "برترین‌های کلوپ"),
+        BotCommand("site", "ورود به سایت"),
         BotCommand("rules", "قوانین کتابخانه"),
     ])
     if _https():
@@ -505,6 +606,10 @@ def build_application(webhook: bool = False) -> Application:
     app.add_handler(CommandHandler("extend", extend))
     app.add_handler(CommandHandler("rules", rules))
     app.add_handler(CommandHandler("books", catalog_link))
+    app.add_handler(CommandHandler("club", club_home))
+    app.add_handler(CommandHandler("log", log_prompt))
+    app.add_handler(CommandHandler("top", top))
+    app.add_handler(CommandHandler("site", site_link))
     app.add_handler(CommandHandler("admin", admin_home))
     app.add_handler(CommandHandler("loans", admin_loans))
     app.add_handler(CommandHandler("lend", admin_lend))

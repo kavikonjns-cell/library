@@ -59,6 +59,13 @@ async def _with_bot(coro) -> None:
 async def deliver(notices: list[services.Notice]) -> None:
     if not notices:
         return
+    for n in notices:
+        if n.member_code and n.inbox and not getattr(n, "_stored", False):
+            try:
+                services.add_inbox(n.member_code, n.text)
+                n._stored = True  # a retried delivery must not store it twice
+            except Exception:
+                log.exception("could not store inbox message")
     if _bot is None and config.BOT_TOKEN:
         return await _with_bot(deliver(notices))
     for n in notices:
@@ -69,3 +76,28 @@ async def deliver(notices: list[services.Notice]) -> None:
             member = services.get_member(n.member_code)
             if member and member["tg_user_id"]:
                 await send(member["tg_user_id"], n.text, n.buttons)
+
+
+async def send_photo_to_admins(data: bytes, filename: str, caption: str, buttons=None) -> str | None:
+    """Send an uploaded photo (e.g. a receipt from the website) to every librarian; returns its file_id."""
+    async def _send(bot) -> str | None:
+        file_id = None
+        for admin_id in config.ADMIN_IDS:
+            try:
+                msg = await bot.send_photo(admin_id, photo=file_id or data, caption=caption[:1000],
+                                           reply_markup=keyboard(buttons), filename=filename or "receipt.jpg")
+                file_id = file_id or msg.photo[-1].file_id
+            except Exception:
+                log.exception("could not send photo to %s", admin_id)
+        return file_id
+
+    if _bot is not None:
+        return await _send(_bot)
+    if not config.BOT_TOKEN:
+        return None
+    try:
+        async with make_bot() as bot:
+            return await _send(bot)
+    except Exception:
+        log.exception("Telegram is not reachable; photo not sent")
+        return None

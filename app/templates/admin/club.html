@@ -1,0 +1,23 @@
+{% extends "admin/base.html" %}
+{% block title %}کلوپ و پیشنهادها{% endblock %}
+{% block body %}
+<h2>💡 پیشنهادهای کتاب ({{ fa(sugg|length) }})</h2>
+<p class="small">کتاب‌هایی که پیشنهادشان خوب است را در فایل اکسل «فهرست خرید» هم بنویسید.</p>
+{% if sugg %}<div class="tbl"><table>
+<tr><th>تاریخ</th><th>پیشنهاد</th><th>از</th><th>وضعیت</th><th></th></tr>
+{% for s in sugg %}<tr>
+  <td>{{ jdate(s.created_at) }}</td><td>{{ s.title }}</td><td><a href="/admin/members/{{ s.member_code }}">{{ s.member_code }} {{ s.name }}</a></td>
+  <td>{{ {'new':'تازه','bought':'خریده شد','rejected':'منصرف شدیم'}[s.status] }}</td>
+  <td>{% for st, label in [('bought','خریده شد'),('rejected','منصرف شدیم'),('new','تازه')] if st != s.status %}
+    <form method="post" action="/admin/suggestions/{{ s.id }}/{{ st }}"><button class="btn sm gray">{{ label }}</button></form>{% endfor %}</td>
+</tr>{% endfor %}</table></div>{% else %}<p class="small">پیشنهادی نیست.</p>{% endif %}
+
+<h2>📖 اعضای {{ cfg.CLUB_NAME }} ({{ fa(members|length) }})</h2>
+{% if members %}<div class="tbl"><table>
+<tr><th>کد</th><th>نام</th><th>زنجیره</th><th>این ماه</th><th>کل</th><th>کتاب تمام‌شده</th><th>در دست</th></tr>
+{% for m in members %}<tr>
+  <td><a href="/admin/members/{{ m.code }}">{{ m.code }}</a></td><td>{{ m.name }}{% if not m.public_profile %} <span class="pill">پنهان</span>{% endif %}</td>
+  <td>🔥 {{ fa(m.stats.streak) }}</td><td>{{ hours(m.stats.month_minutes) }}</td><td>{{ hours(m.stats.total_minutes) }}</td>
+  <td>{{ fa(m.stats.books_finished) }}</td><td>{{ m.stats.reading }}</td>
+</tr>{% endfor %}</table></div>{% else %}<p class="small">هنوز کسی عضو کلوپ نشده است.</p>{% endif %}
+{% endblock %}

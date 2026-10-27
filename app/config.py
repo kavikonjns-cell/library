@@ -102,6 +102,16 @@ PAYMENT_CATEGORIES_IN = ["حق عضویت", "جریمۀ دیرکرد", "کمک �
 PAYMENT_CATEGORIES_OUT = ["خرید کتاب", "تعمیر و جلد", "لوازم (برچسب، قفسه و...)", "سایر هزینه"]
 PAYMENT_METHODS = ["کارت‌به‌کارت", "نقد"]
 
+# --- Readers' club («کلوپ کتاب‌خوان‌ها») ------------------------------------
+CLUB_NAME = os.environ.get("CLUB_NAME", "کلوپ کتاب‌خوان‌های کاوی کنج")
+# Only books borrowed from the library can be logged for now.
+CLUB_ONLY_LIBRARY_BOOKS = os.environ.get("CLUB_ONLY_LIBRARY_BOOKS", "1") == "1"
+CLUB_LOG_CHOICES = [15, 30, 45, 60]
+CLUB_MAX_MINUTES_PER_DAY = _int("CLUB_MAX_MINUTES_PER_DAY", 600)
+# «مرخصی» days that keep the streak alive, per 7 days.
+CLUB_LEAVES_PER_WEEK = _int("CLUB_LEAVES_PER_WEEK", 1)
+EVENING_REMINDER_HOUR = _int("EVENING_REMINDER_HOUR", 20)
+
 CARD_NUMBER = os.environ.get("CARD_NUMBER", "5022291574480701")
 CARD_OWNER = os.environ.get("CARD_OWNER", "مرضیه زادبر، بانک پاسارگاد")
 LIBRARY_PHONE = os.environ.get("LIBRARY_PHONE", "09933892067")

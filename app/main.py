@@ -32,7 +32,7 @@ async def _register_webhook() -> None:
             if info.url != url:
                 await bot.set_webhook(url, secret_token=config.WEBHOOK_SECRET,
                                       allowed_updates=["message", "callback_query"])
-                await setup_bot(bot)
+            await setup_bot(bot)  # command list may have changed with this release
             log.info("Telegram webhook ready")
     except Exception:
         log.exception("could not register the Telegram webhook")

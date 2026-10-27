@@ -1,0 +1,38 @@
+{% extends "member/base.html" %}
+{% block title %}ورود · {{ cfg.LIBRARY_NAME }}{% endblock %}
+{% block body %}
+<section class="box center">
+  <h2>ورود به حساب کتابخانه</h2>
+  <p>عضویت کتابخانه با حساب تلگرام شماست. برای ورود، دکمهٔ زیر را بزنید؛ ربات کتابخانه باز می‌شود. در ربات <b>Start</b> را بزنید و به همین صفحه برگردید؛ خودکار وارد می‌شوید.</p>
+  <a class="btn wide" href="{{ bot_link('login_' ~ nonce) }}" target="_blank" id="go">ورود با تلگرام</a>
+  <p class="small" id="state">منتظر تأیید در تلگرام…</p>
+  <p class="small">هنوز عضو نیستید؟ <a href="{{ bot_link() }}">در ربات تلگرام عضو شوید</a>؛ بعد از عضویت، همین‌جا وارد شوید.</p>
+  <p class="small">در خود ربات هم دکمهٔ «🌐 ورود به سایت» هست که مستقیم وارد حسابتان می‌کند.</p>
+</section>
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+  var tg = window.Telegram && window.Telegram.WebApp, state = document.getElementById('state');
+  if (tg && tg.initData) {  // opened inside Telegram: sign in right away
+    fetch('/api/login/webapp', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ initData: tg.initData }) }).then(function (r) { return r.json(); }).then(function (d) {
+        if (d.ok) location.href = '/me'; else state.textContent = 'هنوز در کتابخانه عضو نشده‌اید. از ربات فرم عضویت را پر کنید.';
+      });
+    return;
+  }
+  var nonce = {{ nonce | tojson }}, tries = 0;
+  function poll() {
+    if (++tries > 200) { state.textContent = 'زمان ورود تمام شد؛ صفحه را دوباره باز کنید.'; return; }
+    fetch('/api/login/poll?nonce=' + encodeURIComponent(nonce), { cache: 'no-store' }).then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (d.state === 'ok') { location.href = '/me'; return; }
+        if (d.state === 'not_member') { state.textContent = 'این حساب تلگرام هنوز عضو کتابخانه نیست. اول در ربات عضو شوید.'; return; }
+        if (d.state === 'expired') { state.textContent = 'کد ورود منقضی شد؛ صفحه را دوباره باز کنید.'; return; }
+        setTimeout(poll, 2500);
+      }).catch(function () { setTimeout(poll, 4000); });
+  }
+  setTimeout(poll, 2500);
+})();
+</script>
+{% endblock %}

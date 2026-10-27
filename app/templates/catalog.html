@@ -19,6 +19,7 @@
 </head>
 <body>
 <div class="wrap">
+{% if not static %}{% include "member/topbar.html" %}{% endif %}
 <header id="top">
   <img class="logo" src="{{ logo if static else '/static/logo.png' }}" alt="کاوی کنج">
   <h1>{{ cfg.LIBRARY_NAME }}</h1>
@@ -71,6 +72,9 @@
   <p class="sum">{{ b.summary or b.short_intro or 'معرفی این کتاب به‌زودی اضافه می‌شود.' }}</p>
   <div class="shelf"><span class="badge {{ b.status.state }}">{{ b.status_label }}</span>
     <span class="wait">{% if b.status.waiting %}🕒 {{ fa(b.status.waiting) }} نفر در صف انتظار{% endif %}</span></div>
+  {% if not static %}{% for r in (reviews or {}).get(b.code, [])[:3] %}
+  <div class="review">{% if r.rating %}<span class="stars">{{ '★' * r.rating }}</span> {% endif %}{{ r.text }}<div class="who">— {{ r.name }} · {{ r.date }}</div></div>
+  {% endfor %}{% endif %}
   <div class="act">
     <a class="btn ext" href="{{ bot_link('b_' ~ b.code) }}">{{ 'درخواست امانت' if b.status.state == 'available' else 'رفتن به صف انتظار' }} در تلگرام</a>
     <button type="button" class="btn inapp hidden" data-code="{{ b.code }}" data-title="{{ b.title }}">{{ 'درخواست امانت' if b.status.state == 'available' else 'رفتن به صف انتظار' }}</button>
@@ -109,6 +113,7 @@
   var BASE = {{ cfg.BASE_URL | tojson }};
   var tg = window.Telegram && window.Telegram.WebApp;
   var inApp = !!(tg && tg.initData);
+  var signedIn = {{ 'true' if (member and not static) else 'false' }};  // member signed in on the website
 
   $('introToggle').onclick = function () { var i = $('intro'); i.classList.toggle('open'); this.textContent = i.classList.contains('open') ? 'بستن' : 'بیشتر بخوانید…'; };
 
@@ -144,20 +149,20 @@
     }).catch(function () {});
   }
 
-  if (!inApp) return;
-  tg.ready(); tg.expand();
+  if (!inApp && !signedIn) return;
+  if (inApp) { tg.ready(); tg.expand(); }
   document.querySelectorAll('.btn.ext').forEach(function (e) { e.classList.add('hidden'); });
   document.querySelectorAll('.btn.inapp').forEach(function (e) { e.classList.remove('hidden'); });
 
   function post(url, body) {
-    body.initData = tg.initData;
+    if (inApp) body.initData = tg.initData;
     return fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
       .then(function (r) { return r.json(); });
   }
   post('/api/me', {}).then(function (d) {
     var box = $('me');
     if (d.member) { box.textContent = d.member.summary; }
-    else { box.innerHTML = 'هنوز عضو نیستید. <a href="/app/register">فرم عضویت را پر کنید</a>.'; }
+    else { box.innerHTML = 'هنوز عضو نیستید. <a href="' + (inApp ? '/app/register' : {{ bot_link() | tojson }}) + '">فرم عضویت را پر کنید</a>.'; }
     box.style.display = 'block';
   }).catch(function () {});
 
@@ -179,7 +184,7 @@
     post('/api/request', { code: current, days: d ? +d.value : 0 }).then(function (r) {
       $('sheetForm').classList.add('hidden');
       var res = $('sheetResult'); res.textContent = r.message || r.detail || 'خطا'; res.classList.remove('hidden');
-      if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred(r.ok ? 'success' : 'error');
+      if (inApp && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred(r.ok ? 'success' : 'error');
     }).catch(function () {
       $('send').disabled = false;
       var res = $('sheetResult'); res.textContent = 'ارتباط برقرار نشد. دوباره امتحان کنید.'; res.classList.remove('hidden');

@@ -17,7 +17,8 @@ def fresh_db(tmp_path, monkeypatch):
     monkeypatch.setattr(config, "DATABASE_URL", pg_url or "")
     if pg_url:
         with db.connect() as conn:
-            conn.execute("DROP TABLE IF EXISTS payments, waitlist, loans, members, books CASCADE")
+            conn.execute("DROP TABLE IF EXISTS login_tokens, suggestions, inbox, badges, reading_logs,"
+                         " payments, waitlist, loans, members, books CASCADE")
     db.init_db()
     yield
 

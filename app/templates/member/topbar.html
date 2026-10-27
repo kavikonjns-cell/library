@@ -1,0 +1,9 @@
+<nav class="topbar">
+  <a href="/" class="brand"><img src="/static/logo.png" alt=""><span>{{ cfg.LIBRARY_NAME }}</span></a>
+  <span class="links">
+    <a href="/">کتاب‌ها</a>
+    <a href="/club">کلوپ</a>
+    {% if member %}<a href="/me" class="me-link">👤 {{ member.name.split()[0] if member.name else 'حساب من' }}</a>
+    {% else %}<a href="/login" class="me-link">ورود</a>{% endif %}
+  </span>
+</nav>

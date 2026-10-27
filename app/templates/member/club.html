@@ -1,0 +1,39 @@
+{% extends "member/base.html" %}
+{% block title %}{{ cfg.CLUB_NAME }}{% endblock %}
+{% block body %}
+<header>
+  <h1>{{ cfg.CLUB_NAME }}</h1>
+  <p class="sub">{{ fa(members_count) }} عضو · برای کسانی که کتاب‌خواندن را عادت هر روزشان کرده‌اند</p>
+</header>
+<section class="box">
+  <p>اعضای کلوپ هر روز زمان مطالعهٔ کتاب امانتی‌شان را ثبت می‌کنند. روزهای پیاپی مطالعه «زنجیره» می‌سازد؛ با گزارش‌ها نشان می‌گیرند و کتاب‌های تمام‌شده و نظرهایشان در صفحهٔ شخصی‌شان جمع می‌شود.
+  عضویت در کلوپ اختیاری و رایگان است.</p>
+  {% if member and not member.club %}<form method="post" action="/me/join"><button class="btn">عضو کلوپ می‌شوم</button></form>
+  {% elif not member %}<a class="btn" href="/login">ورود و پیوستن به کلوپ</a>{% endif %}
+</section>
+
+<section class="box">
+  <h2>🏆 برترین‌ها</h2>
+  {% if board %}
+  <table class="board">
+    <tr><th></th><th>کتاب‌خوان</th><th>زنجیره</th><th>این ماه</th></tr>
+    {% for r in board %}
+    <tr><td>{{ ['🥇','🥈','🥉'][loop.index0] if loop.index0 < 3 else fa(loop.index) }}</td>
+      <td><a href="/club/r/{{ r.code }}">{{ r.name }}</a>{% if r.reading %}<div class="small">📖 {{ r.reading }}</div>{% endif %}</td>
+      <td>🔥 {{ fa(r.streak) }} روز</td><td>{{ hours(r.month_minutes) }}</td></tr>
+    {% endfor %}
+  </table>
+  {% else %}<p class="small">هنوز کسی گزارش مطالعه ثبت نکرده است. اولین نفر باشید! 🌱</p>{% endif %}
+</section>
+
+{% if feed %}
+<section class="box">
+  <h2>📗 تازه تمام‌شده‌ها</h2>
+  {% for f in feed %}
+  <div class="list-row"><a href="/club/r/{{ f.code }}">{{ f.who }}</a> «{{ f.title }}» را تمام کرد
+    {% if f.rating %}<span class="stars">{{ '★' * f.rating }}</span>{% endif %} <span class="small">· {{ jdate(f.returned_at) }}</span>
+    {% if f.feedback %}<div class="review">{{ f.feedback }}</div>{% endif %}</div>
+  {% endfor %}
+</section>
+{% endif %}
+{% endblock %}

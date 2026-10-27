@@ -22,15 +22,29 @@ one book at a time; 14 days, max 30 days total with extensions; no extension if 
 fine 50,000 toman/day up to 4 days; membership revoked at 5 days late; membership valid until end
 of Esfand (from 1 Dey: end of Esfand next year); fees by role 600k / 800k / 1M toman.
 
+## Readers' club + member website (added later)
+- «کلوپ کتاب‌خوان‌های کاوی کنج» (`CLUB_NAME`, may be renamed): optional. Club members log daily reading
+  minutes of their borrowed book (bot buttons or website), get a streak (consecutive days; one «مرخصی» leave
+  day per 7 days keeps it), badges, a public reader page and a leaderboard; after a return they say if they
+  finished the book (+ rating). Non-club members just borrow and return. Ideas come from the owner's earlier
+  reading app «باروباه/کتاب‌بازی» (study log, streaks, best users).
+- `CLUB_ONLY_LIBRARY_BOOKS=1`: only borrowed library books can be logged (owner may change this later).
+- Membership is created only in the Telegram bot. Website sign-in = Telegram: `/login` shows a one-time code
+  opened in the bot (`/start login_<nonce>`), or the bot's «🌐 ورود به سایت» sends a one-time link; inside the
+  mini-app sign-in is automatic (initData). `/me` = full member area (loan, extend, waitlist, receipt upload,
+  club log, feedback, suggestions, inbox). Every member Notice is also stored in the website inbox.
+- Evening reminder: `/cron/evening?key=<WEBHOOK_SECRET>` (Supabase pg_cron job `kavikonj-evening`, 16:30 UTC).
+
 ## Code map
 - `app/services.py` — all business logic, returns `Result`/`Notice`; no Telegram calls (tested).
+- `app/club.py` — readers' club logic; `app/auth.py` — website sign-in codes; `app/member_web.py` — member pages.
 - `app/bot.py` — python-telegram-bot handlers, librarian commands, daily job.
 - `app/web.py` — FastAPI: catalogue, mini-app API (validates Telegram initData), admin panel.
 - `app/main.py` — runs web + bot (long polling) in one process.
 - `app/db.py` — SQLite schema; seeds books from `data/seed/books.json` on first run.
 - `app/exporter.py` — Excel and self-contained HTML exports.
 - `scripts/import_books.py` — re-import books from the library Excel + old HTML list.
-- Tests: `pip install -r requirements-dev.txt && python -m pytest` (18 tests, all passing).
+- Tests: `pip install -r requirements-dev.txt && python -m pytest` (all passing; also run with TEST_DATABASE_URL against Postgres).
 
 ## Status / deployment (live)
 - Repo: `kavikonjns-cell/library` (main). Everything belongs to the library's account (kavikonjns@gmail.com).
