@@ -1,0 +1,25 @@
+{% extends "admin/base.html" %}
+{% block title %}حسابداری{% endblock %}
+{% block body %}
+<h2>دفتر صندوق · موجودی {{ money(stats.balance) }}</h2>
+<p class="small">حق عضویت و جریمه‌ها با تأیید در ربات یا پنل خودکار ثبت می‌شوند. بقیۀ دریافت‌ها و هزینه‌ها را اینجا اضافه کنید. مانده باید با موجودی کارت کتابخانه یکی باشد.</p>
+<details class="add"><summary>➕ سطر تازه</summary>
+<form method="post" action="/admin/payments/new" class="grid" style="margin-top:10px">
+  <input type="text" name="date" placeholder="تاریخ (خالی = امروز)">
+  <select name="category"><optgroup label="دریافت">{% for c in cfg.PAYMENT_CATEGORIES_IN %}<option>{{ c }}</option>{% endfor %}</optgroup>
+    <optgroup label="پرداخت">{% for c in cfg.PAYMENT_CATEGORIES_OUT %}<option>{{ c }}</option>{% endfor %}</optgroup></select>
+  <input type="text" name="amount" placeholder="مبلغ (تومان)" required dir="ltr">
+  <input type="text" name="description" placeholder="شرح">
+  <input type="text" name="member_code" placeholder="کد عضو" dir="ltr">
+  <input type="text" name="book_code" placeholder="کد کتاب" dir="ltr">
+  <select name="method">{% for x in cfg.PAYMENT_METHODS %}<option>{{ x }}</option>{% endfor %}</select>
+  <input type="text" name="ref" placeholder="شمارۀ پیگیری">
+  <button class="btn">ثبت</button>
+</form></details>
+<div class="tbl"><table>
+<tr><th>#</th><th>تاریخ</th><th>دسته</th><th>شرح</th><th>عضو</th><th>کتاب</th><th>روش</th><th>دریافت</th><th>پرداخت</th></tr>
+{% for p in rows %}<tr><td>{{ fa(p.id) }}</td><td>{{ jdate(p.date) }}</td><td>{{ p.category }}</td><td>{{ p.description }}</td>
+  <td>{{ p.member_code }}</td><td>{{ p.book_code }}</td><td>{{ p.method }}</td>
+  <td>{{ money(p.amount) if p.direction == 'in' }}</td><td>{{ money(p.amount) if p.direction == 'out' }}</td></tr>{% endfor %}
+</table></div>
+{% endblock %}

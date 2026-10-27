@@ -1,0 +1,19 @@
+{% extends "admin/base.html" %}
+{% block title %}کتاب‌ها{% endblock %}
+{% block body %}
+<h2>کتاب‌ها ({{ fa(rows|length) }} نسخه)</h2>
+<form class="searchbar" method="get"><input type="text" name="q" value="{{ q }}" placeholder="کد، عنوان یا نویسنده"><button class="btn">جست‌وجو</button>
+  <a class="btn alt" href="/admin/books/edit">➕ کتاب تازه</a></form>
+<p class="small">نسخۀ دوم یک کتاب را با کدی مثل NS-012-2 ثبت کنید؛ در فهرست سایت یک بار می‌آید و هر دو نسخه قابل امانت‌اند. جلد کتاب: فایل JPG را با نام کد کتاب در پوشۀ app/static/covers بگذارید.</p>
+<div class="tbl"><table>
+<tr><th>کد</th><th>عنوان</th><th>نویسنده</th><th>موضوع</th><th>وضعیت</th><th>در دستِ</th><th>تا تاریخ</th><th>دفعات</th><th></th></tr>
+{% for b in rows %}<tr>
+  <td class="mono">{{ b.code }}</td><td>{{ b.title }}</td><td>{{ b.author }}</td><td>{{ b.topic1 }}</td>
+  <td>{% if not b.active %}<span class="pill">خارج از قفسه</span>{% elif b.loan and b.loan.status == 'active' %}<span class="pill bad">در امانت</span>{% elif b.loan %}<span class="pill warn">رزرو</span>{% else %}<span class="pill ok">موجود</span>{% endif %}</td>
+  <td>{% if b.loan %}{{ b.loan.member_code }} {{ b.loan.name }}{% endif %}</td>
+  <td>{% if b.loan %}{{ jdate(b.loan.due_date or b.loan.reserve_expires) }}{% endif %}</td>
+  <td>{{ fa(b.times) }}</td>
+  <td><a href="/admin/books/edit?code={{ b.code }}">ویرایش</a></td>
+</tr>{% endfor %}
+</table></div>
+{% endblock %}

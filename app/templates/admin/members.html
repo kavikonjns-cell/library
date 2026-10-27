@@ -1,0 +1,36 @@
+{% extends "admin/base.html" %}
+{% block title %}اعضا{% endblock %}
+{% block body %}
+<h2>اعضا ({{ fa(rows|length) }})</h2>
+<form class="searchbar" method="get"><input type="text" name="q" value="{{ q }}" placeholder="کد، نام یا شماره"><button class="btn">جست‌وجو</button></form>
+
+<details class="add"><summary>➕ ثبت عضو با فرم کاغذی</summary>
+<form method="post" action="/admin/members/new" class="grid" style="margin-top:10px">
+  <input type="text" name="name" placeholder="نام و نام خانوادگی *" required>
+  <select name="role">{% for r in cfg.ROLE_FEES %}<option>{{ r }}</option>{% endfor %}</select>
+  <input type="text" name="role_other" placeholder="توضیح نقش (برای سایر)">
+  <input type="tel" name="phone" placeholder="شماره تماس *" required dir="ltr">
+  <input type="tel" name="tg_phone" placeholder="شماره تلگرام" dir="ltr">
+  <input type="text" name="child_name" placeholder="نام کودک">
+  <input type="text" name="child_group" placeholder="گروه کودک">
+  <input type="text" name="topics" placeholder="موضوع‌های مورد علاقه (با ؛ جدا)">
+  <input type="text" name="wish" placeholder="پیشنهاد کتاب">
+  <label class="opt"><input type="checkbox" name="paid" value="1"> حق عضویت پرداخت شده</label>
+  <select name="method">{% for x in cfg.PAYMENT_METHODS %}<option>{{ x }}</option>{% endfor %}</select>
+  <button class="btn">ثبت و صدور کد</button>
+</form>
+<p class="small">عضو بعداً در ربات با «🔗 قبلاً عضو شده‌ام» و فرستادن کد عضویت و شمارۀ تماس، تلگرامش را وصل می‌کند.</p>
+</details>
+
+<div class="tbl"><table>
+<tr><th>کد</th><th>نام</th><th>نقش</th><th>تماس</th><th>تلگرام</th><th>اعتبار تا</th><th>پرداخت</th><th>وضعیت</th><th>امانت‌ها</th></tr>
+{% for m in rows %}<tr>
+  <td><a href="/admin/members/{{ m.code }}">{{ m.code }}</a></td><td>{{ m.name }}</td><td>{{ m.role }}</td>
+  <td class="mono">{{ fa(m.phone) }}</td><td>{% if m.tg_user_id %}{{ '@' ~ m.tg_username if m.tg_username else '✔' }}{% else %}<span class="pill">وصل نیست</span>{% endif %}</td>
+  <td>{{ jdate(m.valid_until) }}</td>
+  <td>{% if m.payment_status == 'paid' %}<span class="pill ok">پرداخت شد</span>{% elif m.payment_status == 'rejected' %}<span class="pill bad">رد شد</span>{% else %}<span class="pill warn">در انتظار</span>{% endif %}</td>
+  <td>{% if m.status == 'revoked' %}<span class="pill bad">باطل‌شده</span>{% elif m.valid_until < today %}<span class="pill warn">منقضی</span>{% else %}<span class="pill ok">معتبر</span>{% endif %}</td>
+  <td>{{ fa(m.loans_count) }}</td>
+</tr>{% endfor %}
+</table></div>
+{% endblock %}

@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>فرم عضویت کتابخانه کاوی کنج</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/vazirmatn@33.0.3/Vazirmatn-font-face.css">
+<link rel="stylesheet" href="/static/style.css">
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>.wrap { max-width: 540px; } .intro { font-size: 14.5px; line-height: 2; color: var(--muted); margin: 10px 0 0; text-align: justify; }</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <img class="logo" src="/static/logo.png" alt="کاوی کنج">
+  <h1>فرم عضویت کتابخانه کاوی کنج</h1>
+  <p class="sub">{{ cfg.LIBRARY_SUB }}</p>
+  <p class="intro">کتابخانه کودک و طبیعت کاوی کنج تلاشی است برای گردآوری و در دسترس قرار دادن کتاب‌های مرتبط با حوزه کودک و طبیعت برای والدین، مربیان، تسهیلگران، پژوهشگران و همه کسانی که دغدغه کودکی و طبیعت را دارند. کتابخانه با هدف درآمدزایی راه‌اندازی نشده است و حق عضویت اعضا صرف توسعه کتابخانه و افزایش تعداد و تنوع کتاب‌ها می‌شود. در حال حاضر، خدمات کتابخانه صرفاً به ساکنان شهر مشهد ارائه می‌شود.</p>
+</header>
+
+<div class="notice hidden" id="outside">این فرم را بهتر است از داخل <a href="{{ bot_link('register') }}">ربات تلگرام کتابخانه</a> باز کنید تا کد عضویت فوراً صادر شود.
+اگر اینجا پر کنید، در پایان متنی آماده می‌شود که باید آن را در ربات بفرستید.</div>
+
+<form id="f" novalidate onsubmit="return false;">
+<section class="box">
+  <h2>مشخصات</h2>
+  <div class="field" id="f-name">
+    <label class="lbl" for="name">نام و نام خانوادگی <span class="req">*</span></label>
+    <input type="text" id="name" autocomplete="name">
+    <div class="err">نام را بنویسید.</div>
+  </div>
+  <div class="field" id="f-role">
+    <span class="lbl">نقش <span class="req">*</span></span>
+    <div class="opts">
+      {% for role, fee in cfg.ROLE_FEES.items() %}
+      <label class="opt"><input type="radio" name="role" value="{{ role }}" data-fee="{{ money(fee) }}"><span class="rl">{{ role }}<small>{{ cfg.ROLE_HINTS[role] }}</small></span><b class="amt">{{ money(fee) }}</b></label>
+      {% endfor %}
+    </div>
+    <div class="err">نقش را انتخاب کنید.</div>
+  </div>
+  <div class="field hidden" id="f-other">
+    <label class="lbl" for="other">نقش شما چیست؟ <span class="req">*</span></label>
+    <input type="text" id="other">
+    <div class="small">مثلاً والد، یا تسهیلگر یک مدرسۀ طبیعت دیگر.</div>
+    <div class="err">نقش خود را بنویسید.</div>
+  </div>
+  <div class="hidden" id="kid">
+    <div class="field"><label class="lbl" for="child">نام کودک</label><input type="text" id="child"></div>
+    <div class="field"><label class="lbl" for="group">گروه کودک</label><input type="text" id="group"></div>
+  </div>
+  <div class="field" id="f-phone">
+    <label class="lbl" for="phone">شماره تماس <span class="req">*</span></label>
+    <input type="tel" id="phone" inputmode="tel" autocomplete="tel" dir="ltr" placeholder="09xxxxxxxxx">
+    <div class="err">شمارۀ تماس معتبر بنویسید (۱۱ رقم، با ۰۹ شروع شود).</div>
+  </div>
+  <div class="field">
+    <label class="lbl" for="tg">شماره تلگرام</label>
+    <input type="tel" id="tg" inputmode="tel" dir="ltr">
+    <div class="small">اگر با شمارۀ تماس فرق دارد. یادآوری زمان بازگشت کتاب را خود ربات برایتان می‌فرستد.</div>
+  </div>
+</section>
+
+<section class="box">
+  <h2>موضوع‌های مورد علاقه <span class="small">(اختیاری)</span></h2>
+  <div class="opts">{% for t in cfg.MEMBER_TOPICS %}<label class="opt"><input type="checkbox" name="topic" value="{{ t }}"><span>{{ t }}</span></label>{% endfor %}</div>
+  <div class="field" style="margin-top:14px">
+    <label class="lbl" for="wish">کتاب یا موضوعی که دوست دارید در کتابخانه باشد</label>
+    <textarea id="wish"></textarea>
+  </div>
+</section>
+
+<section class="box">
+  <h2>حق عضویت</h2>
+  <div class="fee"><span>حق عضویت سالیانۀ شما</span><b id="feeamt">نقش را انتخاب کنید</b></div>
+  <div class="small" style="margin-top:8px">اگر امروز ثبت‌نام کنید، عضویت شما تا پایان اسفند {{ valid_year }} اعتبار دارد.</div>
+  <div class="card"><div class="small">واریز به کارت کتابخانه:</div><div class="cardno">{{ fa(cfg.CARD_NUMBER[0:4] ~ ' ' ~ cfg.CARD_NUMBER[4:8] ~ ' ' ~ cfg.CARD_NUMBER[8:12] ~ ' ' ~ cfg.CARD_NUMBER[12:16]) }}</div><div class="small">به نام {{ cfg.CARD_OWNER }}</div>
+    <button type="button" class="btn alt" id="copycard" style="margin-top:8px">کپی شمارۀ کارت</button></div>
+  <div class="small" style="margin-top:6px">بعد از ثبت فرم، عکس فیش واریز را در ربات بفرستید. حق عضویت بازگردانده نمی‌شود.</div>
+</section>
+
+<section class="box">
+  <h2>قوانین کتابخانه</h2>
+  <ol class="rulelist">
+    <li>هر عضو در یک زمان فقط <b>یک کتاب</b> امانت می‌گیرد.</li>
+    <li>مدت امانت <b>دو هفته</b> است. با تمدید، کل مدت از روز تحویل حداکثر <b>{{ fa(cfg.LOAN_MAX_TOTAL_DAYS) }} روز</b> می‌شود.</li>
+    <li>برای تمدید، پیش از پایان مهلت در ربات درخواست می‌دهم. اگر کسی در صف انتظار همان کتاب باشد، تمدید ممکن نیست.</li>
+    <li>تحویل گرفتن و بازگرداندن کتاب فقط در <b>{{ cfg.PICKUP_PLACE }}</b> انجام می‌شود.</li>
+    <li>اگر کتاب را سر موعد برنگردانم، علاوه بر بازگرداندن کتاب، برای هر روز تأخیر <b>{{ money(cfg.FINE_PER_DAY) }}</b> جریمه می‌پردازم، حداکثر تا <b>{{ fa(cfg.FINE_MAX_DAYS) }} روز</b>. تا جریمه تسویه نشود، کتاب تازه امانت داده نمی‌شود.</li>
+    <li>اگر تأخیر به <b>{{ fa(cfg.REVOKE_AFTER_LATE_DAYS) }} روز</b> برسد، <b>عضویتم در کتابخانه باطل می‌شود</b> و حق عضویت بازگردانده نمی‌شود.</li>
+    <li>کتاب را با همان وضعیتی که تحویل گرفته‌ام برمی‌گردانم. در آن یادداشت نمی‌نویسم، خط نمی‌کشم و صفحه‌ها را تا نمی‌زنم.</li>
+    <li>اگر کتاب گم شود یا آسیب جدی ببیند، <b>فقط</b> نسخه‌ای جدید از همان کتاب تهیه می‌کنم و در اختیار کتابخانه قرار می‌دهم.</li>
+    <li>کتاب امانتی را به شخص دیگری نمی‌دهم.</li>
+    <li>عضویت از روز ثبت‌نام تا <b>پایان اسفند</b> همان سال اعتبار دارد. اگر ثبت‌نام از اول دی به بعد باشد، عضویت تا پایان اسفند سال بعد معتبر است.</li>
+    <li>حق عضویت در هیچ شرایطی بازگردانده نمی‌شود.</li>
+    <li>فهرست کتاب‌ها و وضعیت آن‌ها در سایت و گروه تلگرام کتابخانه منتشر می‌شود.</li>
+  </ol>
+  <div class="field" id="f-agree" style="margin-top:12px">
+    <label class="opt"><input type="checkbox" id="agree"><span>قوانین کتابخانه و حق عضویت سالیانه را خواندم و می‌پذیرم. <span class="req">*</span></span></label>
+    <div class="err">برای عضویت، پذیرش قوانین لازم است.</div>
+  </div>
+</section>
+<button type="button" class="btn wide" id="make">ثبت عضویت</button>
+</form>
+
+<section class="box hidden done" id="ok">
+  <h2>🎉 ثبت‌نام انجام شد</h2>
+  <div>کد عضویت شما</div><div class="big" id="code"></div>
+  <div class="result" id="okmsg" style="text-align:right"></div>
+  <button type="button" class="btn wide" id="closeApp">بازگشت به ربات</button>
+</section>
+
+<section class="box hidden" id="out">
+  <h2>یک قدم مانده</h2>
+  <ol class="rulelist"><li>متن زیر کپی شد.</li><li>دکمه را بزنید تا ربات کتابخانه باز شود.</li><li>متن را بچسبانید و بفرستید؛ کد عضویت را فوراً دریافت می‌کنید. بعد عکس فیش را بفرستید.</li></ol>
+  <textarea id="msg" readonly style="min-height:220px"></textarea>
+  <a class="btn wide" href="{{ bot_link() }}">باز کردن ربات کتابخانه</a>
+</section>
+
+<footer><div class="slogan">{{ cfg.SLOGAN }}</div><div>{{ cfg.LIBRARY_NAME }} · تأسیس ۱۴۰۵</div></footer>
+</div>
+
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var qa = function (s) { return Array.prototype.slice.call(document.querySelectorAll(s)); };
+  var tg = window.Telegram && window.Telegram.WebApp;
+  var inApp = !!(tg && tg.initData);
+  if (inApp) { tg.ready(); tg.expand(); } else { $('outside').classList.remove('hidden'); }
+  var FA = '۰۱۲۳۴۵۶۷۸۹', AR = '٠١٢٣٤٥٦٧٨٩';
+  var en = function (s) { return String(s).replace(/[۰-۹٠-٩]/g, function (c) { var k = FA.indexOf(c); return k >= 0 ? k : AR.indexOf(c); }); };
+  var fa = function (s) { return String(s).replace(/[0-9]/g, function (d) { return FA.charAt(+d); }); };
+  var role = function () { var r = qa('input[name=role]').filter(function (x) { return x.checked; })[0]; return r || null; };
+  var mark = function (id, bad) { $(id).classList.toggle('bad', bad); return !bad; };
+
+  qa('input[name=role]').forEach(function (r) {
+    r.onchange = function () {
+      var v = role() && role().value;
+      $('kid').classList.toggle('hidden', v !== 'والد باغ شبنم');
+      $('f-other').classList.toggle('hidden', v !== 'سایر');
+      $('feeamt').textContent = role().dataset.fee;
+      $('f-role').classList.remove('bad');
+    };
+  });
+  qa('#f input, #f textarea').forEach(function (el) { el.addEventListener('input', function () { var f = el.closest('.field'); if (f) f.classList.remove('bad'); }); });
+  $('copycard').onclick = function () {
+    try { navigator.clipboard.writeText({{ cfg.CARD_NUMBER | tojson }}); this.textContent = 'شمارۀ کارت کپی شد'; } catch (e) {}
+  };
+
+  function collect() {
+    var r = role(), phone = en($('phone').value).replace(/[\s\-]/g, '');
+    var ok = mark('f-name', !$('name').value.trim());
+    ok = mark('f-role', !r) && ok;
+    ok = mark('f-other', !!r && r.value === 'سایر' && !$('other').value.trim()) && ok;
+    ok = mark('f-phone', !/^(\+98|0098|0)?9\d{9}$/.test(phone)) && ok;
+    ok = mark('f-agree', !$('agree').checked) && ok;
+    if (!ok) { var b = document.querySelector('.bad'); if (b) b.scrollIntoView({ block: 'center' }); return null; }
+    return {
+      name: $('name').value.trim(), role: r.value, role_other: $('other').value.trim(),
+      child_name: $('child').value.trim(), child_group: $('group').value.trim(), phone: phone,
+      tg_phone: en($('tg').value).replace(/[\s\-]/g, ''), wish: $('wish').value.trim(), agree: true,
+      topics: qa('input[name=topic]').filter(function (x) { return x.checked; }).map(function (x) { return x.value; })
+    };
+  }
+
+  function asText(f) {
+    var L = ['📝 درخواست عضویت در کتابخانه کاوی کنج', '', 'نام: ' + f.name, 'نقش: ' + (f.role === 'سایر' ? 'سایر (' + f.role_other + ')' : f.role)];
+    if (f.child_name) L.push('نام کودک: ' + f.child_name);
+    if (f.child_group) L.push('گروه کودک: ' + f.child_group);
+    L.push('شماره تماس: ' + fa(f.phone));
+    if (f.tg_phone && f.tg_phone !== f.phone) L.push('شماره تلگرام: ' + fa(f.tg_phone));
+    if (f.topics.length) L.push('موضوع‌های مورد علاقه: ' + f.topics.join('؛ '));
+    if (f.wish) L.push('پیشنهاد کتاب: ' + f.wish.replace(/\s*\n\s*/g, ' '));
+    L.push('', '✅ قوانین کتابخانه و حق عضویت سالیانه را خواندم و می‌پذیرم.');
+    return L.join('\n');
+  }
+
+  $('make').onclick = function () {
+    var f = collect(); if (!f) return;
+    if (!inApp) {
+      var t = asText(f); $('msg').value = t;
+      try { navigator.clipboard.writeText(t); } catch (e) {}
+      $('f').classList.add('hidden'); $('out').classList.remove('hidden'); window.scrollTo(0, 0); return;
+    }
+    var btn = $('make'); btn.disabled = true; btn.textContent = 'در حال ثبت…';
+    fetch('/api/register', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ initData: tg.initData, form: f }) })
+      .then(function (r) { return r.json(); })
+      .then(function (r) {
+        btn.disabled = false; btn.textContent = 'ثبت عضویت';
+        if (!r.ok && !r.code) { alert(r.message || r.detail || 'خطا در ثبت'); return; }
+        $('code').textContent = r.code; $('okmsg').textContent = r.message;
+        $('f').classList.add('hidden'); $('ok').classList.remove('hidden'); window.scrollTo(0, 0);
+        if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+      })
+      .catch(function () { btn.disabled = false; btn.textContent = 'ثبت عضویت'; alert('ارتباط برقرار نشد. دوباره امتحان کنید.'); });
+  };
+  $('closeApp').onclick = function () { if (inApp) tg.close(); };
+})();
+</script>
+</body>
+</html>

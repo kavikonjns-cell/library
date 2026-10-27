@@ -1,0 +1,13 @@
+{% extends "admin/base.html" %}{% set hide_nav = True %}
+{% block title %}ورود{% endblock %}
+{% block body %}
+<section class="box" style="max-width:380px;margin:60px auto;text-align:center">
+  <img src="/static/logo.png" alt="" style="width:110px">
+  <h2>پنل مدیریت {{ cfg.LIBRARY_NAME }}</h2>
+  {% if not cfg.ADMIN_PASSWORD %}<div class="notice">رمز پنل تنظیم نشده است. ADMIN_PASSWORD را در فایل ‎.env بنویسید.</div>{% endif %}
+  <form method="post" action="/admin/login">
+    <input type="password" name="password" placeholder="رمز" autofocus required>
+    <button class="btn wide">ورود</button>
+  </form>
+</section>
+{% endblock %}

@@ -1,0 +1,4 @@
+# Replace with your domain; Caddy gets the HTTPS certificate automatically.
+kavikonj.example.com {
+    reverse_proxy kavikonj:8000
+}

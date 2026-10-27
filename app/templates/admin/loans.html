@@ -1,0 +1,40 @@
+{% extends "admin/base.html" %}
+{% block title %}امانت‌ها{% endblock %}
+{% block body %}
+<h2>امانت‌ها</h2>
+<p>{% for k, label in [('open','باز (رزرو و در امانت)'),('active','در امانت'),('reserved','رزرو'),('returned','بازگشته'),('lost','گم‌شده'),('cancelled','لغو'),('all','همه')] %}
+  <a class="pill {{ 'ok' if status == k }}" href="?status={{ k }}">{{ label }}</a> {% endfor %}</p>
+
+<details class="add" open><summary>➕ امانت حضوری (کتاب همین الان تحویل داده می‌شود)</summary>
+<form method="post" action="/admin/loans/new" class="grid" style="margin-top:10px">
+  <input type="text" name="book_code" placeholder="کد کتاب، مثلاً NS-012" dir="ltr" required>
+  <input type="text" name="member_code" placeholder="کد عضو، مثلاً M-07" dir="ltr" required>
+  <select name="days">{% for d in day_choices %}<option value="{{ d }}" {{ 'selected' if d == cfg.LOAN_DEFAULT_DAYS }}>{{ fa(d) }} روز</option>{% endfor %}</select>
+  <input type="text" name="by" placeholder="تحویل‌دهنده">
+  <label class="opt"><input type="checkbox" name="force" value="1"> نادیده گرفتن هشدارها</label>
+  <button class="btn">ثبت امانت</button>
+</form></details>
+
+<div class="tbl"><table>
+<tr><th>#</th><th>کتاب</th><th>عضو</th><th>وضعیت</th><th>تحویل</th><th>مهلت</th><th>تأخیر/جریمه</th><th>کار</th></tr>
+{% for r in rows %}<tr class="{{ 'late' if r.status == 'active' and r.late }}">
+  <td>{{ fa(r.id) }}</td><td>{{ r.book_code }} «{{ r.title }}»</td>
+  <td><a href="/admin/members/{{ r.member_code }}">{{ r.member_code }} {{ r.name }}</a><br><span class="mono small">{{ fa(r.phone) }}</span></td>
+  <td>{{ {'reserved':'رزرو','active':'در امانت','returned':'بازگشته','lost':'گم‌شده','cancelled':'لغو'}[r.status] }}</td>
+  <td>{{ jdate(r.handed_at) if r.handed_at else ('رزرو تا ' ~ jdate(r.reserve_expires) if r.status == 'reserved' else '') }}</td>
+  <td>{{ jdate(r.due_date) }}{% if r.returned_at %}<br><span class="small">برگشت {{ jdate(r.returned_at) }}</span>{% endif %}</td>
+  <td>{% if r.late %}{{ fa(r.late) }} روز · {{ money(r.current_fine) }}{% if r.status != 'active' %} {{ '✔' if r.fine_paid else '✗' }}{% endif %}{% endif %}</td>
+  <td>
+  {% if r.status == 'reserved' %}
+    <form method="post" action="/admin/loans/{{ r.id }}/handover"><input type="text" name="by" placeholder="تحویل‌دهنده" size="8"><button class="btn sm">تحویل شد</button></form>
+    <form method="post" action="/admin/loans/{{ r.id }}/cancel"><button class="btn sm gray">لغو</button></form>
+  {% elif r.status == 'active' %}
+    <form method="post" action="/admin/loans/{{ r.id }}/return"><select name="condition">{% for c in conditions %}<option>{{ c }}</option>{% endfor %}</select><input type="text" name="by" placeholder="تحویل‌گیرنده" size="8"><button class="btn sm">برگشت</button></form>
+    <form method="post" action="/admin/loans/{{ r.id }}/due"><input type="text" name="due" placeholder="مهلت تازه" size="9"><button class="btn sm gray">تغییر مهلت</button></form>
+  {% elif r.fine and not r.fine_paid %}
+    <form method="post" action="/admin/loans/{{ r.id }}/finepaid"><button class="btn sm">جریمه تسویه شد</button></form>
+  {% endif %}
+  </td>
+</tr>{% endfor %}
+</table></div>
+{% endblock %}
