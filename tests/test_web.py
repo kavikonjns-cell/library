@@ -65,3 +65,10 @@ def test_admin_requires_login(monkeypatch):
     assert x.status_code == 200 and x.content[:2] == b"PK"
     h = c.get("/admin/catalog.html")
     assert h.status_code == 200 and "data:image/jpeg;base64" in h.text
+
+
+def test_cron_daily_requires_secret(monkeypatch):
+    monkeypatch.setattr(config, "WEBHOOK_SECRET", "s3cret")
+    c = TestClient(create_app())
+    assert c.get("/cron/daily?key=nope").status_code == 403
+    assert c.get("/cron/daily?key=s3cret").json()["ok"] is True

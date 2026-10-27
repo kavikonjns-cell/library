@@ -1,4 +1,5 @@
 import datetime as dt
+import os
 import sys
 from pathlib import Path
 
@@ -12,6 +13,11 @@ from app import config, db  # noqa: E402
 @pytest.fixture(autouse=True)
 def fresh_db(tmp_path, monkeypatch):
     monkeypatch.setattr(config, "DB_PATH", tmp_path / "test.db")
+    pg_url = os.environ.get("TEST_DATABASE_URL")  # run the suite against PostgreSQL too
+    monkeypatch.setattr(config, "DATABASE_URL", pg_url or "")
+    if pg_url:
+        with db.connect() as conn:
+            conn.execute("DROP TABLE IF EXISTS payments, waitlist, loans, members, books CASCADE")
     db.init_db()
     yield
 

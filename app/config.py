@@ -45,6 +45,8 @@ ADMIN_IDS = _ids("ADMIN_IDS")
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "")
 SECRET_KEY = os.environ.get("SECRET_KEY", "change-me")
 DB_PATH = Path(os.environ.get("DB_PATH", ROOT / "data" / "kavikonj.db"))
+# PostgreSQL address (e.g. Supabase). Empty = local SQLite file at DB_PATH.
+DATABASE_URL = os.environ.get("DATABASE_URL", "")
 # "polling" (one long-running process) or "webhook" (Telegram calls /tg/<secret>; for PythonAnywhere).
 BOT_MODE = os.environ.get("BOT_MODE", "polling")
 WEBHOOK_SECRET = os.environ.get("WEBHOOK_SECRET", "")

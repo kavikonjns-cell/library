@@ -93,6 +93,15 @@ def _public_routes(app: FastAPI) -> None:
             logging.getLogger(__name__).exception("webhook update failed")
         return {"ok": True}
 
+    @app.api_route("/cron/daily", methods=["GET", "POST"])
+    async def cron_daily(key: str = ""):
+        """Daily check, called once a day by a scheduler (e.g. Supabase pg_cron)."""
+        if not config.WEBHOOK_SECRET or not hmac.compare_digest(key, config.WEBHOOK_SECRET):
+            raise HTTPException(403)
+        notices = services.daily_tasks()
+        await notify.deliver(notices)
+        return {"ok": True, "notices": len(notices)}
+
     @app.get("/health")
     async def health():
         return {"ok": True}

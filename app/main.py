@@ -18,6 +18,26 @@ logging.getLogger("httpx").setLevel(logging.WARNING)
 log = logging.getLogger("kavikonj")
 
 
+def _https() -> bool:
+    return config.BASE_URL.startswith("https://")
+
+
+async def _register_webhook() -> None:
+    """Point Telegram at /tg/<secret> on this site (idempotent, safe to run on every start)."""
+    from .bot import setup_bot
+    try:
+        async with notify.make_bot() as bot:
+            url = f"{config.BASE_URL}/tg/{config.WEBHOOK_SECRET}"
+            info = await bot.get_webhook_info()
+            if info.url != url:
+                await bot.set_webhook(url, secret_token=config.WEBHOOK_SECRET,
+                                      allowed_updates=["message", "callback_query"])
+                await setup_bot(bot)
+            log.info("Telegram webhook ready")
+    except Exception:
+        log.exception("could not register the Telegram webhook")
+
+
 @asynccontextmanager
 async def lifespan(_app):
     init_db()
@@ -35,6 +55,8 @@ async def lifespan(_app):
         await tg_app.updater.start_polling(drop_pending_updates=False)
         notify.set_bot(tg_app.bot)
         log.info("Telegram bot started")
+    elif config.BOT_TOKEN and config.BOT_MODE == "webhook" and config.WEBHOOK_SECRET and _https():
+        await _register_webhook()
     else:
         log.warning("bot not polling (BOT_MODE=%s, token set: %s)", config.BOT_MODE, bool(config.BOT_TOKEN))
     try:

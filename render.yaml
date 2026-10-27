@@ -1,0 +1,32 @@
+# Render blueprint: website + Telegram bot (webhook mode). Data lives in PostgreSQL (DATABASE_URL, e.g. Supabase).
+services:
+  - type: web
+    name: kavikonj
+    runtime: python
+    plan: free
+    region: frankfurt
+    branch: main
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT --proxy-headers --forwarded-allow-ips '*'
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.8
+      - key: BOT_MODE
+        value: webhook
+      - key: BOT_USERNAME
+        value: Kavikonj_librarybot
+      - key: BOT_TOKEN
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: BASE_URL
+        sync: false
+      - key: ADMIN_IDS
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: SECRET_KEY
+        generateValue: true
+      - key: WEBHOOK_SECRET
+        generateValue: true
