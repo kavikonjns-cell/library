@@ -26,6 +26,11 @@ async def lifespan(_app):
         from .bot import build_application
         tg_app = build_application()
         await tg_app.initialize()
+        if tg_app.post_init:  # only run_polling() calls it by itself
+            try:
+                await tg_app.post_init(tg_app)
+            except Exception:
+                log.exception("could not set bot commands / menu button")
         await tg_app.start()
         await tg_app.updater.start_polling(drop_pending_updates=False)
         notify.set_bot(tg_app.bot)
