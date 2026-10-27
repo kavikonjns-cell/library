@@ -79,6 +79,20 @@ def _public_routes(app: FastAPI) -> None:
     async def app_catalog():
         return RedirectResponse("/", status_code=307)
 
+    @app.post("/tg/{secret}")
+    async def telegram_webhook(secret: str, request: Request):
+        token = request.headers.get("X-Telegram-Bot-Api-Secret-Token", "")
+        if not config.WEBHOOK_SECRET or not (hmac.compare_digest(secret, config.WEBHOOK_SECRET)
+                                             and hmac.compare_digest(token, config.WEBHOOK_SECRET)):
+            raise HTTPException(403)
+        from .bot import process_webhook_update
+        try:
+            await process_webhook_update(await request.json())
+        except Exception:  # answer 200 anyway so Telegram does not resend the same update forever
+            import logging
+            logging.getLogger(__name__).exception("webhook update failed")
+        return {"ok": True}
+
     @app.get("/health")
     async def health():
         return {"ok": True}
