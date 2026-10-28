@@ -627,6 +627,23 @@ def return_book(loan_id: int, condition: str = "سالم", by: str = "", on: dt.
     return Result(True, msg, notices, {"fine": fine, "late": days_late})
 
 
+def delete_loan(loan_id: int, on: dt.date | None = None) -> Result:
+    """Remove a loan entered by mistake or for testing (with its fine payment and reading logs)."""
+    on = on or _today()
+    with connect() as conn:
+        loan = conn.execute("SELECT l.*, b.title, b.base_code FROM loans l JOIN books b ON b.code = l.book_code"
+                            " WHERE l.id = ?", (loan_id,)).fetchone()
+        if not loan:
+            return Result(False, "این امانت پیدا نشد.")
+        conn.execute("DELETE FROM payments WHERE loan_id = ?", (loan_id,))
+        conn.execute("DELETE FROM reading_logs WHERE loan_id = ?", (loan_id,))
+        conn.execute("DELETE FROM loans WHERE id = ?", (loan_id,))
+        if loan["status"] == "lost":
+            conn.execute("UPDATE books SET active = 1 WHERE code = ?", (loan["book_code"],))
+        notices = _process_waitlist(conn, loan["base_code"], on) if loan["status"] in ("reserved", "active") else []
+    return Result(True, f"امانت #{fa(loan_id)} («{loan['title']}»، {loan['member_code']}) پاک شد.", notices)
+
+
 def mark_fine_paid(loan_id: int, method: str = "کارت‌به‌کارت", on: dt.date | None = None) -> Result:
     on = on or _today()
     with connect() as conn:

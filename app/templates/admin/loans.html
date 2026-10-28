@@ -34,6 +34,7 @@
   {% elif r.fine and not r.fine_paid %}
     <form method="post" action="/admin/loans/{{ r.id }}/finepaid"><button class="btn sm">جریمه تسویه شد</button></form>
   {% endif %}
+    <form method="post" action="/admin/loans/{{ r.id }}/delete" onsubmit="return confirm('این امانت کاملاً پاک شود؟ (فقط برای امانت اشتباه یا آزمایشی)')"><button class="btn sm gray" title="پاک کردن امانت اشتباه یا آزمایشی">🗑</button></form>
   </td>
 </tr>{% endfor %}
 </table></div>

@@ -18,9 +18,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-import openpyxl  # noqa: E402
-
 from app import db  # noqa: E402
+from app.importer import import_books, read_excel  # noqa: E402
 
 COVERS = Path(__file__).resolve().parent.parent / "app" / "static" / "covers"
 
@@ -44,32 +43,14 @@ def read_html(path: Path) -> dict[str, str]:
     return summaries
 
 
-def read_excel(path: Path) -> list[dict]:
-    wb = openpyxl.load_workbook(path, data_only=True)
-    ws = wb["کتاب‌ها"]
-    books = []
-    for r in ws.iter_rows(min_row=4, values_only=True):
-        if not r[0]:
-            continue
-        v = lambda i: "" if i >= len(r) or r[i] is None else str(r[i]).strip()  # noqa: E731
-        code = v(0).upper()
-        books.append(dict(code=code, base_code=re.sub(r"^(NS-\d+)-\d+$", r"\1", code), title=v(1), author=v(2),
-                          translator=v(3), publisher=v(4), year=v(5), topic1=v(6), topic2=v(7), short_intro=v(8),
-                          condition=v(9) or "سالم", source=v(10), added_at=v(11), note=v(16)))
-    return books
-
-
 def main() -> None:
     if len(sys.argv) < 2:
         sys.exit(__doc__)
     db.init_db(seed=False)
     books = read_excel(Path(sys.argv[1]))
     summaries = read_html(Path(sys.argv[2])) if len(sys.argv) > 2 else {}
-    with db.connect() as conn:
-        old = {r["code"]: r["summary"] for r in conn.execute("SELECT code, summary FROM books")}
-    for b in books:
-        b["summary"] = summaries.get(b["base_code"]) or old.get(b["code"], "")
-    print(f"{db.upsert_books(books)} books imported, {len(summaries)} descriptions/covers from HTML.")
+    added, updated = import_books(books, summaries)
+    print(f"{added} new and {updated} existing copies imported, {len(summaries)} descriptions/covers from HTML.")
 
 
 if __name__ == "__main__":

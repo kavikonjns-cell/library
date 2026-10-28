@@ -12,7 +12,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 
-from . import club, config, exporter, jalali, member_web, notify, services
+from . import club, config, exporter, importer, jalali, member_web, notify, services
 from .db import connect, upsert_books
 from .telegram_auth import validate_init_data
 
@@ -336,6 +336,23 @@ def _admin_routes(app: FastAPI) -> None:
             book = {"code": f"NS-{n:03d}", "condition": "نو", "source": "خرید", "active": 1, "new": True}
         return _render(request, "admin/book_edit.html", b=book)
 
+    @app.post("/admin/books/import")
+    async def books_import(request: Request):
+        _guard(request)
+        f = await request.form()
+        upload = f.get("file")
+        if not upload or not getattr(upload, "filename", ""):
+            return _back(request, "فایل اکسل را انتخاب کنید.", False)
+        try:
+            books = importer.read_excel(await upload.read())
+        except Exception as e:  # noqa: BLE001 - a broken file must show a message, not crash
+            return _back(request, f"فایل خوانده نشد: {e}", False)
+        if not books:
+            return _back(request, "در برگهٔ «کتاب‌ها» کتابی پیدا نشد.", False)
+        added, updated = importer.import_books(books)
+        return _back(request, f"فهرست کتاب‌ها به‌روز شد: {jalali.fa(added)} نسخهٔ تازه، {jalali.fa(updated)} نسخهٔ به‌روزشده.",
+                     True, "/admin/books")
+
     @app.post("/admin/books/save")
     async def book_save(request: Request):
         _guard(request)
@@ -392,6 +409,8 @@ def _admin_routes(app: FastAPI) -> None:
             res = services.cancel_reservation(loan_id, str(f.get("reason", "")))
         elif action == "finepaid":
             res = services.mark_fine_paid(loan_id, str(f.get("method") or "کارت‌به‌کارت"))
+        elif action == "delete":
+            res = services.delete_loan(loan_id)
         elif action == "due":
             try:
                 new_due = jalali.parse_jalali(str(f.get("due", "")))

@@ -4,6 +4,12 @@
 <h2>کتاب‌ها ({{ fa(rows|length) }} نسخه)</h2>
 <form class="searchbar" method="get"><input type="text" name="q" value="{{ q }}" placeholder="کد، عنوان یا نویسنده"><button class="btn">جست‌وجو</button>
   <a class="btn alt" href="/admin/books/edit">➕ کتاب تازه</a></form>
+<details class="add"><summary>📥 به‌روزرسانی از فایل اکسل کتابخانه</summary>
+<form method="post" action="/admin/books/import" enctype="multipart/form-data" class="inline" style="margin-top:10px">
+  <input type="file" name="file" accept=".xlsx" required><button class="btn sm">بارگذاری</button>
+</form>
+<p class="small">برگهٔ «کتاب‌ها» خوانده می‌شود: کتاب‌های تازه اضافه و بقیه به‌روز می‌شوند. معرفی‌های کامل سایت، امانت‌ها و اعضا دست نمی‌خورند و کتابی هم پاک نمی‌شود.</p>
+</details>
 <p class="small">نسخۀ دوم یک کتاب را با کدی مثل NS-012-2 ثبت کنید؛ در فهرست سایت یک بار می‌آید و هر دو نسخه قابل امانت‌اند. جلد کتاب: فایل JPG را با نام کد کتاب در پوشۀ app/static/covers بگذارید.</p>
 <div class="tbl"><table>
 <tr><th>کد</th><th>عنوان</th><th>نویسنده</th><th>موضوع</th><th>وضعیت</th><th>در دستِ</th><th>تا تاریخ</th><th>دفعات</th><th></th></tr>

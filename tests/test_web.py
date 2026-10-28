@@ -72,3 +72,32 @@ def test_cron_daily_requires_secret(monkeypatch):
     c = TestClient(create_app())
     assert c.get("/cron/daily?key=nope").status_code == 403
     assert c.get("/cron/daily?key=s3cret").json()["ok"] is True
+
+
+def test_admin_book_import_and_loan_delete(monkeypatch, tmp_path):
+    import io
+    from openpyxl import Workbook
+    from app import services
+    from app.db import connect
+    monkeypatch.setattr(config, "ADMIN_PASSWORD", "pw")
+    c = TestClient(create_app())
+    c.post("/admin/login", data={"password": "pw"})
+    wb = Workbook(); ws = wb.active; ws.title = "کتاب‌ها"
+    ws.append(["title row"]); ws.append(["note"]); ws.append(["headers"])
+    ws.append(["NS-001", "بوم‌شناسی تخیلات کودکی (ویرایش)", "عظیمی"])
+    ws.append(["NS-099", "کتاب تازه", "نویسنده", "", "", "", "نوجوانی", "", "معرفی کوتاه"])
+    buf = io.BytesIO(); wb.save(buf)
+    r = c.post("/admin/books/import", files={"file": ("lib.xlsx", buf.getvalue())})
+    assert "۱ نسخهٔ تازه" in r.text
+    with connect() as conn:
+        b1 = conn.execute("SELECT * FROM books WHERE code = 'NS-001'").fetchone()
+    assert b1["title"].endswith("(ویرایش)") and b1["summary"]           # long description kept
+    assert services.get_book("NS-099")["topic1"] == "نوجوانی"
+    c.post("/admin/members/new", data={"name": "آزمون", "role": "سایر", "phone": "09150000000", "paid": "1"})
+    c.post("/admin/loans/new", data={"book_code": "NS-001", "member_code": "M-01", "days": "14"})
+    with connect() as conn:
+        loan_id = conn.execute("SELECT id FROM loans").fetchone()[0]
+    c.post(f"/admin/loans/{loan_id}/delete")
+    with connect() as conn:
+        assert conn.execute("SELECT COUNT(*) FROM loans").fetchone()[0] == 0
+    assert "موجود در قفسه" in c.get("/").text
