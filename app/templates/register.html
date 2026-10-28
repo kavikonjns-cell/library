@@ -18,8 +18,7 @@
   <p class="intro">کتابخانه کودک و طبیعت کاوی کنج تلاشی است برای گردآوری و در دسترس قرار دادن کتاب‌های مرتبط با حوزه کودک و طبیعت برای والدین، مربیان، تسهیلگران، پژوهشگران و همه کسانی که دغدغه کودکی و طبیعت را دارند. کتابخانه با هدف درآمدزایی راه‌اندازی نشده است و حق عضویت اعضا صرف توسعه کتابخانه و افزایش تعداد و تنوع کتاب‌ها می‌شود. در حال حاضر، خدمات کتابخانه صرفاً به ساکنان شهر مشهد ارائه می‌شود.</p>
 </header>
 
-<div class="notice hidden" id="outside">این فرم را بهتر است از داخل <a href="{{ bot_link('register') }}">ربات تلگرام کتابخانه</a> باز کنید تا کد عضویت فوراً صادر شود.
-اگر اینجا پر کنید، در پایان متنی آماده می‌شود که باید آن را در ربات بفرستید.</div>
+<div class="notice hidden" id="outside">این فرم را بیرون از تلگرام باز کرده‌اید. اشکالی ندارد: فرم را پر کنید؛ در پایان ربات کتابخانه باز می‌شود و با زدن <b>Start</b> ثبت‌نام خودکار تمام می‌شود.</div>
 
 <form id="f" novalidate onsubmit="return false;">
 <section class="box">
@@ -109,11 +108,11 @@
   <button type="button" class="btn wide" id="closeApp">بازگشت به ربات</button>
 </section>
 
-<section class="box hidden" id="out">
+<section class="box hidden center" id="out">
   <h2>یک قدم مانده</h2>
-  <ol class="rulelist"><li>متن زیر کپی شد.</li><li>دکمه را بزنید تا ربات کتابخانه باز شود.</li><li>متن را بچسبانید و بفرستید؛ کد عضویت را فوراً دریافت می‌کنید. بعد عکس فیش را بفرستید.</li></ol>
-  <textarea id="msg" readonly style="min-height:220px"></textarea>
-  <a class="btn wide" href="{{ bot_link() }}">باز کردن ربات کتابخانه</a>
+  <p>فرم شما ذخیره شد. دکمهٔ زیر را بزنید تا ربات کتابخانه باز شود و در آن <b>Start</b> را بزنید؛ ثبت‌نام خودکار تمام می‌شود و کد عضویت را همان‌جا می‌گیرید.</p>
+  <a class="btn wide" id="finish" href="{{ bot_link() }}">تکمیل ثبت‌نام در تلگرام</a>
+  <p class="small">این لینک تا ۲ روز اعتبار دارد.</p>
 </section>
 
 <footer><div class="slogan">{{ cfg.SLOGAN }}</div><div>{{ cfg.LIBRARY_NAME }} · تأسیس ۱۴۰۵</div></footer>
@@ -125,7 +124,9 @@
   var qa = function (s) { return Array.prototype.slice.call(document.querySelectorAll(s)); };
   var tg = window.Telegram && window.Telegram.WebApp;
   var inApp = !!(tg && tg.initData);
-  if (inApp) { tg.ready(); tg.expand(); } else { $('outside').classList.remove('hidden'); }
+  // Opened from the bot's bottom-menu button: Telegram gives no initData there, but sendData() works
+  var keyboardApp = !inApp && !!(tg && tg.sendData && tg.platform && tg.platform !== 'unknown');
+  if (inApp || keyboardApp) { tg.ready(); tg.expand(); } else { $('outside').classList.remove('hidden'); }
   var FA = '۰۱۲۳۴۵۶۷۸۹', AR = '٠١٢٣٤٥٦٧٨٩';
   var en = function (s) { return String(s).replace(/[۰-۹٠-٩]/g, function (c) { var k = FA.indexOf(c); return k >= 0 ? k : AR.indexOf(c); }); };
   var fa = function (s) { return String(s).replace(/[0-9]/g, function (d) { return FA.charAt(+d); }); };
@@ -162,26 +163,30 @@
     };
   }
 
-  function asText(f) {
-    var L = ['📝 درخواست عضویت در کتابخانه کاوی کنج', '', 'نام: ' + f.name, 'نقش: ' + (f.role === 'سایر' ? 'سایر (' + f.role_other + ')' : f.role)];
-    if (f.child_name) L.push('نام کودک: ' + f.child_name);
-    if (f.child_group) L.push('گروه کودک: ' + f.child_group);
-    L.push('شماره تماس: ' + fa(f.phone));
-    if (f.tg_phone && f.tg_phone !== f.phone) L.push('شماره تلگرام: ' + fa(f.tg_phone));
-    if (f.topics.length) L.push('موضوع‌های مورد علاقه: ' + f.topics.join('؛ '));
-    if (f.wish) L.push('پیشنهاد کتاب: ' + f.wish.replace(/\s*\n\s*/g, ' '));
-    L.push('', '✅ قوانین کتابخانه و حق عضویت سالیانه را خواندم و می‌پذیرم.');
-    return L.join('\n');
-  }
-
   $('make').onclick = function () {
     var f = collect(); if (!f) return;
-    if (!inApp) {
-      var t = asText(f); $('msg').value = t;
-      try { navigator.clipboard.writeText(t); } catch (e) {}
-      $('f').classList.add('hidden'); $('out').classList.remove('hidden'); window.scrollTo(0, 0); return;
+    var btn = $('make');
+    if (keyboardApp) {  // the bot receives the form and replies with the member code; the form closes itself
+      f.wish = f.wish.slice(0, 600);
+      tg.sendData(JSON.stringify({ t: 'register', form: f }));
+      return;
     }
-    var btn = $('make'); btn.disabled = true; btn.textContent = 'در حال ثبت…';
+    btn.disabled = true; btn.textContent = 'در حال ثبت…';
+    if (!inApp) {  // ordinary browser: keep the form on the server, finish with one tap in the bot
+      fetch('/api/register/pending', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ form: f }) })
+        .then(function (r) { return r.json(); })
+        .then(function (r) {
+          btn.disabled = false; btn.textContent = 'ثبت عضویت';
+          if (!r.ok) { alert(r.message || 'خطا در ثبت'); return; }
+          $('finish').href = r.link;
+          $('f').classList.add('hidden'); $('outside').classList.add('hidden'); $('out').classList.remove('hidden');
+          window.scrollTo(0, 0);
+          window.location.href = r.link;  // open the bot right away
+        })
+        .catch(function () { btn.disabled = false; btn.textContent = 'ثبت عضویت'; alert('ارتباط برقرار نشد. دوباره امتحان کنید.'); });
+      return;
+    }
     fetch('/api/register', { method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ initData: tg.initData, form: f }) })
       .then(function (r) { return r.json(); })

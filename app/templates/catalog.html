@@ -114,6 +114,8 @@
   var tg = window.Telegram && window.Telegram.WebApp;
   var inApp = !!(tg && tg.initData);
   var signedIn = {{ 'true' if (member and not static) else 'false' }};  // member signed in on the website
+  // Opened from the bot's bottom-menu button: no initData, but sendData() hands the request to the bot
+  var keyboardApp = !STATIC && !inApp && !!(tg && tg.sendData && tg.platform && tg.platform !== 'unknown');
 
   $('introToggle').onclick = function () { var i = $('intro'); i.classList.toggle('open'); this.textContent = i.classList.contains('open') ? 'بستن' : 'بیشتر بخوانید…'; };
 
@@ -149,8 +151,8 @@
     }).catch(function () {});
   }
 
-  if (!inApp && !signedIn) return;
-  if (inApp) { tg.ready(); tg.expand(); }
+  if (!inApp && !signedIn && !keyboardApp) return;
+  if (inApp || keyboardApp) { tg.ready(); tg.expand(); }
   document.querySelectorAll('.btn.ext').forEach(function (e) { e.classList.add('hidden'); });
   document.querySelectorAll('.btn.inapp').forEach(function (e) { e.classList.remove('hidden'); });
 
@@ -159,7 +161,7 @@
     return fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
       .then(function (r) { return r.json(); });
   }
-  post('/api/me', {}).then(function (d) {
+  if (inApp || signedIn) post('/api/me', {}).then(function (d) {
     var box = $('me');
     if (d.member) { box.textContent = d.member.summary; }
     else { box.innerHTML = 'هنوز عضو نیستید. <a href="' + (inApp ? '/app/register' : {{ bot_link() | tojson }}) + '">فرم عضویت را پر کنید</a>.'; }
@@ -180,6 +182,10 @@
   $('close').onclick = closeSheet; $('sheetBg').onclick = closeSheet;
   $('send').onclick = function () {
     var d = document.querySelector('input[name=days]:checked');
+    if (keyboardApp && !signedIn) {  // the bot answers in the chat; the catalogue closes itself
+      tg.sendData(JSON.stringify({ t: 'request', code: current, days: d ? +d.value : 0 }));
+      return;
+    }
     $('send').disabled = true;
     post('/api/request', { code: current, days: d ? +d.value : 0 }).then(function (r) {
       $('sheetForm').classList.add('hidden');

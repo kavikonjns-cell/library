@@ -159,6 +159,15 @@ def _api_routes(app: FastAPI) -> None:
             await notify.deliver(res.notices)
         return {"ok": res.ok, "message": res.message, **res.data}
 
+    @app.post("/api/register/pending")
+    async def register_pending(request: Request):
+        """Form filled in an ordinary browser: keep it; the bot finishes it on /start reg_<token>."""
+        body = await request.json()
+        res = services.save_pending_form(body.get("form") or {})
+        if not res.ok:
+            return {"ok": False, "message": res.message}
+        return {"ok": True, "link": bot_link("reg_" + res.data["token"])}
+
     @app.post("/api/request")
     async def request_book(request: Request):
         m = member_web.current_member(request)

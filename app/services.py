@@ -147,6 +147,8 @@ def register_member(form: dict, tg_user_id: int | None = None, tg_username: str 
         errors.append("برای عضویت، پذیرش قوانین کتابخانه لازم است.")
     if errors:
         return Result(False, "\n".join(errors))
+    if form.get("_validate_only"):
+        return Result(True, "")
 
     topics = form.get("topics") or []
     if isinstance(topics, str):
@@ -226,6 +228,40 @@ def parse_registration_text(text: str) -> dict | None:
             break
     form["agree"] = "می‌پذیرم" in text or "میپذیرم" in text
     return form if form.get("name") else None
+
+
+PENDING_FORM_DAYS = 2
+
+
+def save_pending_form(form: dict, on: dt.datetime | None = None) -> Result:
+    """Keep a form filled outside Telegram until its owner opens the bot; returns a one-time token."""
+    import json
+    import secrets
+
+    check = register_member({**form, "_validate_only": True})
+    if not check.ok:
+        return check
+    token = secrets.token_urlsafe(12)
+    stamp = (on or dt.datetime.now()).isoformat(timespec="seconds")
+    with connect() as conn:
+        cutoff = ((on or dt.datetime.now()) - dt.timedelta(days=PENDING_FORM_DAYS)).isoformat(timespec="seconds")
+        conn.execute("DELETE FROM pending_forms WHERE created_at < ?", (cutoff,))
+        conn.execute("INSERT INTO pending_forms (token, form, created_at) VALUES (?, ?, ?)",
+                     (token, json.dumps(form, ensure_ascii=False), stamp))
+    return Result(True, "", data={"token": token})
+
+
+def take_pending_form(token: str) -> dict | None:
+    import json
+
+    with connect() as conn:
+        row = conn.execute("SELECT * FROM pending_forms WHERE token = ?", (token,)).fetchone()
+        if not row:
+            return None
+        conn.execute("DELETE FROM pending_forms WHERE token = ?", (token,))
+    if dt.datetime.now() - dt.datetime.fromisoformat(row["created_at"]) > dt.timedelta(days=PENDING_FORM_DAYS):
+        return None
+    return json.loads(row["form"])
 
 
 def attach_receipt(member_code: str, file_id: str) -> Result:

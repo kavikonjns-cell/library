@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import datetime as dt
+import json
 import logging
 import re
 from zoneinfo import ZoneInfo
@@ -103,6 +104,15 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         with connect() as conn:
             conn.execute("UPDATE members SET tg_username = ? WHERE code = ?", (user.username or "", member["code"]))
 
+    if payload.startswith("reg_"):
+        if member:
+            return await _reply(update, f"شما قبلاً با کد {member['code']} عضو شده‌اید.", keyboard=main_keyboard(member))
+        form = services.take_pending_form(payload[4:])
+        if not form:
+            return await _reply(update, "این لینک ثبت‌نام منقضی شده است. لطفاً فرم عضویت را دوباره پر کنید.",
+                                keyboard=main_keyboard(None))
+        return await _finish_registration(update, form)
+
     if payload.startswith("login_"):
         if not member:
             return await _reply(update, "برای ورود به سایت، اول باید در همین ربات عضو کتابخانه شوید.",
@@ -128,6 +138,31 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             "برای باز کردن فرم عضویت دکمۀ زیر را بزنید:",
             reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton(
                 "📝 فرم عضویت", web_app=WebAppInfo(config.BASE_URL + "/app/register"))]]))
+
+
+async def _finish_registration(update: Update, form: dict) -> None:
+    user = update.effective_user
+    res = services.register_member(form, user.id, user.username or "")
+    new_member = services.get_member_by_tg(user.id)
+    await _reply(update, res.message, keyboard=main_keyboard(new_member))
+    await _deliver(res)
+
+
+async def on_web_app_data(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Data sent by a mini-app opened from the bottom-menu button (Telegram.WebApp.sendData)."""
+    try:
+        data = json.loads(update.effective_message.web_app_data.data)
+    except (ValueError, AttributeError):
+        return await _reply(update, "اطلاعات فرم خوانده نشد. لطفاً دوباره امتحان کنید.")
+    member = services.get_member_by_tg(update.effective_user.id)
+    if data.get("t") == "register":
+        if member:
+            return await _reply(update, f"شما قبلاً با کد {member['code']} عضو شده‌اید.", keyboard=main_keyboard(member))
+        return await _finish_registration(update, data.get("form") or {})
+    if data.get("t") == "request":
+        res = services.request_book(member["code"] if member else None, str(data.get("code", "")), int(data.get("days") or 0))
+        await _reply(update, res.message)
+        return await _deliver(res)
 
 
 async def show_book(update: Update, context: ContextTypes.DEFAULT_TYPE, code: str) -> None:
@@ -617,6 +652,7 @@ def build_application(webhook: bool = False) -> Application:
     app.add_handler(CommandHandler("member", admin_member))
     app.add_handler(CommandHandler("find", admin_find))
     app.add_handler(CommandHandler("daily", admin_daily))
+    app.add_handler(MessageHandler(filters.StatusUpdate.WEB_APP_DATA, on_web_app_data))
     app.add_handler(CallbackQueryHandler(on_callback))
     app.add_handler(MessageHandler(filters.PHOTO | filters.Document.ALL, on_receipt))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, on_text))

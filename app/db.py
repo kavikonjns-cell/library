@@ -138,6 +138,13 @@ CREATE TABLE IF NOT EXISTS suggestions (
     status      TEXT NOT NULL DEFAULT 'new'  -- new | bought | rejected
 );
 
+-- Membership forms filled in a normal browser, completed when the person opens the bot (/start reg_<token>).
+CREATE TABLE IF NOT EXISTS pending_forms (
+    token       TEXT PRIMARY KEY,
+    form        TEXT NOT NULL,             -- JSON
+    created_at  TEXT NOT NULL
+);
+
 -- Website sign-in through the bot: the site shows a code, the member confirms it in Telegram.
 CREATE TABLE IF NOT EXISTS login_tokens (
     nonce       TEXT PRIMARY KEY,
