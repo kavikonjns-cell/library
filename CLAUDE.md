@@ -33,6 +33,13 @@ of Esfand (from 1 Dey: end of Esfand next year); fees by role 600k / 800k / 1M t
   opened in the bot (`/start login_<nonce>`), or the bot's «🌐 ورود به سایت» sends a one-time link; inside the
   mini-app sign-in is automatic (initData). `/me` = full member area (loan, extend, waitlist, receipt upload,
   club log, feedback, suggestions, inbox). Every member Notice is also stored in the website inbox.
+- Registration paths: mini-app with initData → `/api/register`; mini-app opened from the reply-keyboard button
+  (no initData) → `Telegram.WebApp.sendData` → bot `on_web_app_data`; ordinary browser → `/api/register/pending`
+  then `/start reg_<token>`. The keyboard catalogue sends book requests via sendData too.
+- Admin panel can import the book list from the library Excel (books page), and delete a test/mistaken loan,
+  member (with all their records) or accounting row.
+- Owner handover: a private PDF guide with all accounts/passwords was given to the owner (NOT in the repo).
+  The original builder (GitHub `sub7mehrdad-a11y`, Telegram id 6288109972) keeps collaborator/admin access.
 - Evening reminder: `/cron/evening?key=<WEBHOOK_SECRET>` (Supabase pg_cron job `kavikonj-evening`, 16:30 UTC).
 
 ## Code map
