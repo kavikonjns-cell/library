@@ -18,6 +18,10 @@
   {% endif %}
 </p>
 
+<p><form method="post" action="/admin/members/{{ m.code }}/delete" style="display:inline"
+  onsubmit="return confirm('عضو {{ m.code }} و همهٔ امانت‌ها، پرداخت‌ها و گزارش‌هایش کاملاً پاک شود؟ این کار برگشت ندارد. (فقط برای عضو اشتباه یا آزمایشی)')">
+  <button class="btn sm gray">🗑 پاک کردن کامل این عضو</button></form></p>
+
 <h2>ویرایش مشخصات</h2>
 <form method="post" action="/admin/members/{{ m.code }}/edit" class="grid">
   <label>نام<input type="text" name="name" value="{{ m.name }}"></label>

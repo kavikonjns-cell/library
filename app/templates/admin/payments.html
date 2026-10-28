@@ -17,9 +17,10 @@
   <button class="btn">ثبت</button>
 </form></details>
 <div class="tbl"><table>
-<tr><th>#</th><th>تاریخ</th><th>دسته</th><th>شرح</th><th>عضو</th><th>کتاب</th><th>روش</th><th>دریافت</th><th>پرداخت</th></tr>
+<tr><th>#</th><th>تاریخ</th><th>دسته</th><th>شرح</th><th>عضو</th><th>کتاب</th><th>روش</th><th>دریافت</th><th>پرداخت</th><th></th></tr>
 {% for p in rows %}<tr><td>{{ fa(p.id) }}</td><td>{{ jdate(p.date) }}</td><td>{{ p.category }}</td><td>{{ p.description }}</td>
   <td>{{ p.member_code }}</td><td>{{ p.book_code }}</td><td>{{ p.method }}</td>
-  <td>{{ money(p.amount) if p.direction == 'in' }}</td><td>{{ money(p.amount) if p.direction == 'out' }}</td></tr>{% endfor %}
+  <td>{{ money(p.amount) if p.direction == 'in' }}</td><td>{{ money(p.amount) if p.direction == 'out' }}</td>
+  <td><form method="post" action="/admin/payments/{{ p.id }}/delete" onsubmit="return confirm('این سطر حسابداری پاک شود؟')"><button class="btn sm gray" title="پاک کردن سطر اشتباه">🗑</button></form></td></tr>{% endfor %}
 </table></div>
 {% endblock %}

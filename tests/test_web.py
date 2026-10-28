@@ -101,3 +101,28 @@ def test_admin_book_import_and_loan_delete(monkeypatch, tmp_path):
     with connect() as conn:
         assert conn.execute("SELECT COUNT(*) FROM loans").fetchone()[0] == 0
     assert "موجود در قفسه" in c.get("/").text
+
+
+def test_admin_delete_member_and_payment(monkeypatch):
+    from app import services
+    from app.db import connect
+    monkeypatch.setattr(config, "ADMIN_PASSWORD", "pw")
+    c = TestClient(create_app())
+    c.post("/admin/login", data={"password": "pw"})
+    c.post("/admin/members/new", data={"name": "آزمون", "role": "سایر", "phone": "09150000000", "paid": "1"})
+    c.post("/admin/members/new", data={"name": "دوم", "role": "سایر", "phone": "09150000001", "paid": "1"})
+    c.post("/admin/loans/new", data={"book_code": "NS-001", "member_code": "M-01", "days": "14"})
+    services.request_book("M-02", "NS-001", 7)                 # M-02 waits for the same book
+    c.post("/admin/members/M-01/delete")
+    assert services.get_member("M-01") is None
+    with connect() as conn:
+        assert conn.execute("SELECT COUNT(*) FROM payments WHERE member_code = 'M-01'").fetchone()[0] == 0
+        reserved = conn.execute("SELECT member_code FROM loans WHERE status = 'reserved'").fetchone()
+        pay_id = conn.execute("SELECT id FROM payments").fetchone()[0]
+    assert reserved["member_code"] == "M-02"                     # freed copy went to the queue
+    c.post(f"/admin/payments/{pay_id}/delete")
+    with connect() as conn:
+        assert conn.execute("SELECT COUNT(*) FROM payments").fetchone()[0] == 0
+    c.post("/admin/members/M-02/delete")
+    r = services.register_member({"name": "تازه", "role": "سایر", "phone": "09150000002", "agree": True}, 9)
+    assert r.data["code"] == "M-01"                              # codes start again when everyone is gone

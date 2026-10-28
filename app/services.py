@@ -627,6 +627,36 @@ def return_book(loan_id: int, condition: str = "سالم", by: str = "", on: dt.
     return Result(True, msg, notices, {"fine": fine, "late": days_late})
 
 
+def delete_member(member_code: str, on: dt.date | None = None) -> Result:
+    """Remove a member entered by mistake or for testing, with everything recorded for them."""
+    on = on or _today()
+    with connect() as conn:
+        m = conn.execute("SELECT * FROM members WHERE code = ?", (member_code,)).fetchone()
+        if not m:
+            return Result(False, "عضوی با این کد پیدا نشد.")
+        freed = [r["base_code"] for r in conn.execute(
+            "SELECT DISTINCT b.base_code FROM loans l JOIN books b ON b.code = l.book_code"
+            " WHERE l.member_code = ? AND l.status IN ('reserved','active')", (member_code,))]
+        conn.execute("UPDATE books SET active = 1 WHERE code IN (SELECT book_code FROM loans"
+                     " WHERE member_code = ? AND status = 'lost')", (member_code,))
+        for table in ("reading_logs", "badges", "inbox", "suggestions", "waitlist", "payments", "loans"):
+            conn.execute(f"DELETE FROM {table} WHERE member_code = ?", (member_code,))
+        conn.execute("DELETE FROM members WHERE code = ?", (member_code,))
+        notices = [n for base in freed for n in _process_waitlist(conn, base, on)]
+    return Result(True, f"عضو {member_code} ({m['name']}) و همهٔ امانت‌ها و پرداخت‌هایش پاک شد.", notices)
+
+
+def delete_payment(payment_id: int) -> Result:
+    with connect() as conn:
+        p = conn.execute("SELECT * FROM payments WHERE id = ?", (payment_id,)).fetchone()
+        if not p:
+            return Result(False, "این سطر حسابداری پیدا نشد.")
+        conn.execute("DELETE FROM payments WHERE id = ?", (payment_id,))
+        if p["loan_id"] and p["category"] == "جریمۀ دیرکرد":
+            conn.execute("UPDATE loans SET fine_paid = 0 WHERE id = ?", (p["loan_id"],))
+    return Result(True, f"سطر حسابداری #{fa(payment_id)} ({money(p['amount'])}) پاک شد.")
+
+
 def delete_loan(loan_id: int, on: dt.date | None = None) -> Result:
     """Remove a loan entered by mistake or for testing (with its fine payment and reading logs)."""
     on = on or _today()

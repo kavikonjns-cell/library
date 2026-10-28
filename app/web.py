@@ -295,6 +295,10 @@ def _admin_routes(app: FastAPI) -> None:
             res = services.reject_payment(code, form.get("reason", ""))
         elif action == "renew":
             res = services.renew_membership(code, form.get("role") or None)
+        elif action == "delete":
+            res = services.delete_member(code)
+            await notify.deliver(res.notices)
+            return _back(request, res.message, res.ok, "/admin/members")
         elif action in ("revoke", "activate"):
             res = services.set_member_status(code, "revoked" if action == "revoke" else "active")
         elif action == "edit":
@@ -430,6 +434,12 @@ def _admin_routes(app: FastAPI) -> None:
         _guard(request)
         rows = _rows("SELECT * FROM payments ORDER BY date DESC, id DESC LIMIT 1000")
         return _render(request, "admin/payments.html", rows=rows, stats=services.dashboard())
+
+    @app.post("/admin/payments/{payment_id}/delete")
+    async def payment_delete(request: Request, payment_id: int):
+        _guard(request)
+        res = services.delete_payment(payment_id)
+        return _back(request, res.message, res.ok)
 
     @app.post("/admin/payments/new")
     async def payment_new(request: Request):
