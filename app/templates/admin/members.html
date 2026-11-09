@@ -15,6 +15,8 @@
   <input type="text" name="child_group" placeholder="گروه کودک">
   <input type="text" name="topics" placeholder="موضوع‌های مورد علاقه (با ؛ جدا)">
   <input type="text" name="wish" placeholder="پیشنهاد کتاب">
+  <input type="text" name="username" placeholder="نام کاربری سایت (اختیاری)" dir="ltr">
+  <input type="text" name="password" placeholder="رمز سایت (اختیاری)" dir="ltr">
   <label class="opt"><input type="checkbox" name="paid" value="1"> حق عضویت پرداخت شده</label>
   <select name="method">{% for x in cfg.PAYMENT_METHODS %}<option>{{ x }}</option>{% endfor %}</select>
   <button class="btn">ثبت و صدور کد</button>
@@ -23,10 +25,10 @@
 </details>
 
 <div class="tbl"><table>
-<tr><th>کد</th><th>نام</th><th>نقش</th><th>تماس</th><th>تلگرام</th><th>اعتبار تا</th><th>پرداخت</th><th>وضعیت</th><th>امانت‌ها</th></tr>
+<tr><th>کد</th><th>نام</th><th>نقش</th><th>تماس</th><th>نام کاربری</th><th>تلگرام</th><th>اعتبار تا</th><th>پرداخت</th><th>وضعیت</th><th>امانت‌ها</th></tr>
 {% for m in rows %}<tr>
   <td><a href="/admin/members/{{ m.code }}">{{ m.code }}</a></td><td>{{ m.name }}</td><td>{{ m.role }}</td>
-  <td class="mono">{{ fa(m.phone) }}</td><td>{% if m.tg_user_id %}{{ '@' ~ m.tg_username if m.tg_username else '✔' }}{% else %}<span class="pill">وصل نیست</span>{% endif %}</td>
+  <td class="mono">{{ fa(m.phone) }}</td><td class="mono" dir="ltr">{{ m.username }}</td><td>{% if m.tg_user_id %}{{ '@' ~ m.tg_username if m.tg_username else '✔' }}{% else %}<span class="pill">وصل نیست</span>{% endif %}</td>
   <td>{{ jdate(m.valid_until) }}</td>
   <td>{% if m.payment_status == 'paid' %}<span class="pill ok">پرداخت شد</span>{% elif m.payment_status == 'rejected' %}<span class="pill bad">رد شد</span>{% else %}<span class="pill warn">در انتظار</span>{% endif %}</td>
   <td>{% if m.status == 'revoked' %}<span class="pill bad">باطل‌شده</span>{% elif m.valid_until < today %}<span class="pill warn">منقضی</span>{% else %}<span class="pill ok">معتبر</span>{% endif %}</td>

@@ -12,7 +12,7 @@ import re
 import sqlite3
 from dataclasses import dataclass, field
 
-from . import config
+from . import accounts, config
 from .db import connect
 from .jalali import en, fa, jalali_year, money, membership_valid_until, to_jalali, today as _today
 
@@ -128,6 +128,10 @@ def membership_problems(member, on: dt.date) -> list[str]:
     return problems
 
 
+class _UsernameTaken(Exception):
+    pass
+
+
 def register_member(form: dict, tg_user_id: int | None = None, tg_username: str = "",
                     on: dt.date | None = None) -> Result:
     """Create a member from the membership form and issue a member code."""
@@ -145,6 +149,15 @@ def register_member(form: dict, tg_user_id: int | None = None, tg_username: str 
         errors.append("شمارۀ تماس معتبر بنویسید (۱۱ رقم و با ۰۹ شروع شود).")
     if not form.get("agree"):
         errors.append("برای عضویت، پذیرش قوانین کتابخانه لازم است.")
+    web_account = bool(form.get("username") or form.get("password"))  # signup on the website
+    username, password = accounts.normalize_username(form.get("username", "")), form.get("password") or ""
+    if web_account:
+        problem = accounts.username_problem(username)
+        if problem:
+            errors.append(problem)
+        problem = accounts.password_problem(password)
+        if problem:
+            errors.append(problem)
     if errors:
         return Result(False, "\n".join(errors))
     if form.get("_validate_only"):
@@ -154,34 +167,46 @@ def register_member(form: dict, tg_user_id: int | None = None, tg_username: str 
     if isinstance(topics, str):
         topics = [t.strip() for t in re.split(r"[؛;،,]", topics) if t.strip()]
 
-    with connect() as conn:
-        if tg_user_id:
-            old = conn.execute("SELECT * FROM members WHERE tg_user_id = ?", (tg_user_id,)).fetchone()
-            if old:
-                return Result(False, f"شما قبلاً با کد عضویت {old['code']} ثبت‌نام کرده‌اید.",
-                              data={"code": old["code"], "existing": True})
-        code, seq = _next_member_code(conn)
-        fee = fee_for_role(role)
-        valid_until = membership_valid_until(on)
-        conn.execute(
-            "INSERT INTO members (code, seq, tg_user_id, tg_username, name, role, role_other, child_name,"
-            " child_group, phone, tg_phone, topics, wish, fee, registered_at, valid_until)"
-            " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-            (code, seq, tg_user_id, tg_username or "", name, role, (form.get("role_other") or "").strip(),
-             (form.get("child_name") or "").strip(), (form.get("child_group") or "").strip(), phone,
-             tg_phone if tg_phone and tg_phone != phone else "", "؛ ".join(topics),
-             (form.get("wish") or "").strip(), fee, on.isoformat(), valid_until.isoformat()))
+    try:
+        with connect() as conn:
+            if tg_user_id:
+                old = conn.execute("SELECT * FROM members WHERE tg_user_id = ?", (tg_user_id,)).fetchone()
+                if old:
+                    return Result(False, f"شما قبلاً با کد عضویت {old['code']} ثبت‌نام کرده‌اید.",
+                                  data={"code": old["code"], "existing": True})
+            code, seq = _next_member_code(conn)
+            fee = fee_for_role(role)
+            valid_until = membership_valid_until(on)
+            conn.execute(
+                "INSERT INTO members (code, seq, tg_user_id, tg_username, name, role, role_other, child_name,"
+                " child_group, phone, tg_phone, topics, wish, fee, registered_at, valid_until)"
+                " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                (code, seq, tg_user_id, tg_username or "", name, role, (form.get("role_other") or "").strip(),
+                 (form.get("child_name") or "").strip(), (form.get("child_group") or "").strip(), phone,
+                 tg_phone if tg_phone and tg_phone != phone else "", "؛ ".join(topics),
+                 (form.get("wish") or "").strip(), fee, on.isoformat(), valid_until.isoformat()))
+            if web_account:
+                problem = accounts.set_credentials(code, username, password, conn)
+                if problem:  # e.g. the username was taken a moment ago
+                    raise _UsernameTaken(problem)
+    except _UsernameTaken as e:
+        return Result(False, str(e))
 
     msg = (f"🎉 ثبت‌نام شما انجام شد.\n\n"
            f"کد عضویت: {code}\n"
            f"حق عضویت سالیانه: {money(fee)}\n"
            f"اعتبار عضویت: تا پایان اسفند {fa(jalali_year(valid_until))}\n\n"
            f"💳 لطفاً حق عضویت را به کارت {fa(_card())} به نام {config.CARD_OWNER} واریز کنید "
-           f"و عکس فیش را همین‌جا در ربات بفرستید. بعد از تأیید پرداخت می‌توانید کتاب امانت بگیرید.")
+           + ("و عکس فیش را در «حساب من» در سایت بفرستید (یا در ربات تلگرام). "
+              if web_account and not tg_user_id else "و عکس فیش را همین‌جا در ربات بفرستید. ")
+           + "بعد از تأیید پرداخت می‌توانید کتاب امانت بگیرید.")
+    if web_account:
+        msg += f"\n\n🔑 نام کاربری شما برای ورود به سایت: {username}"
     admin = Notice(
         admins=True,
         text=(f"🆕 عضو تازه: {code}\n{name} · {role}{' (' + form.get('role_other', '') + ')' if form.get('role_other') else ''}\n"
-              f"تماس: {fa(phone)}\nحق عضویت: {money(fee)}\nمنتظر فیش واریز."),
+              f"تماس: {fa(phone)}\nحق عضویت: {money(fee)}\nمنتظر فیش واریز."
+              + (f"\nثبت‌نام از سایت · نام کاربری: {username}" if web_account else "")),
     )
     return Result(True, msg, [admin], {"code": code, "fee": fee, "valid_until": valid_until.isoformat()})
 

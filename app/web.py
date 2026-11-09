@@ -12,7 +12,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 
-from . import club, config, covers, exporter, importer, jalali, member_web, notify, services
+from . import accounts, club, config, covers, exporter, importer, jalali, member_web, notify, services
 from .db import connect, upsert_books
 from .telegram_auth import validate_init_data
 
@@ -279,7 +279,7 @@ def _admin_routes(app: FastAPI) -> None:
         loans = _rows("SELECT l.*, b.title FROM loans l JOIN books b ON b.code = l.book_code"
                       " WHERE l.member_code = ? ORDER BY l.id DESC", code)
         return _render(request, "admin/member.html", m=dict(m), loans=loans,
-                       summary=services.member_summary(code))
+                       summary=services.member_summary(code), password=accounts.reveal(m))
 
     @app.post("/admin/members/new")
     async def member_new(request: Request):
@@ -315,6 +315,15 @@ def _admin_routes(app: FastAPI) -> None:
                              [str(form.get(f, "")).strip() for f in fields] +
                              [services.fee_for_role(str(form.get("role", ""))), code])
             res = services.Result(True, "مشخصات عضو ذخیره شد.")
+        elif action == "password":  # set the website username / a new password (empty = make a temporary one)
+            m = services.get_member(code)
+            if not m:
+                raise HTTPException(404)
+            password = str(form.get("password", "")).strip() or accounts.new_temp_password()
+            username = str(form.get("username", "")).strip() or m["username"] or code.lower().replace("-", "")
+            problem = accounts.set_credentials(code, username, password)
+            res = services.Result(not problem, problem or f"نام کاربری {accounts.normalize_username(username)}"
+                                                         f" و رمز {password} برای {code} ذخیره شد. این‌ها را به عضو بگویید.")
         else:
             raise HTTPException(404)
         return await _apply(request, res)

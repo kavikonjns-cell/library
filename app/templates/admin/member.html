@@ -22,6 +22,22 @@
   onsubmit="return confirm('عضو {{ m.code }} و همهٔ امانت‌ها، پرداخت‌ها و گزارش‌هایش کاملاً پاک شود؟ این کار برگشت ندارد. (فقط برای عضو اشتباه یا آزمایشی)')">
   <button class="btn sm gray">🗑 پاک کردن کامل این عضو</button></form></p>
 
+<h2>ورود به سایت</h2>
+<section class="box">
+  {% if m.username %}
+  <p>نام کاربری: <b class="mono" dir="ltr">{{ m.username }}</b>
+    {% if password %} · رمز: <b class="mono" dir="ltr">{{ password }}</b>{% elif m.password_hash %} · رمز: <span class="small">قابل نمایش نیست (یک رمز تازه بسازید)</span>{% endif %}</p>
+  {% else %}
+  <p class="small">این عضو هنوز نام کاربری و رمز ندارد{% if m.tg_user_id %} (با تلگرام وارد سایت می‌شود){% endif %}.</p>
+  {% endif %}
+  <form method="post" action="/admin/members/{{ m.code }}/password" class="grid">
+    <label>نام کاربری<input type="text" name="username" value="{{ m.username }}" dir="ltr" placeholder="{{ m.code|lower|replace('-', '') }}"></label>
+    <label>رمز تازه<input type="text" name="password" dir="ltr" placeholder="خالی = رمز موقت خودکار"></label>
+    <div><button class="btn alt">ذخیرهٔ نام کاربری / رمز تازه</button></div>
+  </form>
+  <p class="small">اگر عضو رمزش را فراموش کرده و تلگرامش وصل نیست، اینجا رمز تازه بسازید و به او بگویید. خودش بعداً از «حساب من» می‌تواند رمز را عوض کند.</p>
+</section>
+
 <h2>ویرایش مشخصات</h2>
 <form method="post" action="/admin/members/{{ m.code }}/edit" class="grid">
   <label>نام<input type="text" name="name" value="{{ m.name }}"></label>

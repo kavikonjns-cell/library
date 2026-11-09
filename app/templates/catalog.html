@@ -164,7 +164,7 @@
   if (inApp || signedIn) post('/api/me', {}).then(function (d) {
     var box = $('me');
     if (d.member) { box.textContent = d.member.summary; }
-    else { box.innerHTML = 'هنوز عضو نیستید. <a href="' + (inApp ? '/app/register' : {{ bot_link() | tojson }}) + '">فرم عضویت را پر کنید</a>.'; }
+    else { box.innerHTML = 'هنوز عضو نیستید. <a href="/app/register">فرم عضویت را پر کنید</a>.'; }
     box.style.display = 'block';
   }).catch(function () {});
 

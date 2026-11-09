@@ -3,10 +3,23 @@
 {% block body %}
 <section class="box center">
   <h2>ورود به حساب کتابخانه</h2>
-  <p>عضویت کتابخانه با حساب تلگرام شماست. برای ورود، دکمهٔ زیر را بزنید؛ ربات کتابخانه باز می‌شود. در ربات <b>Start</b> را بزنید و به همین صفحه برگردید؛ خودکار وارد می‌شوید.</p>
-  <a class="btn wide" href="{{ bot_link('login_' ~ nonce) }}" target="_blank" id="go">ورود با تلگرام</a>
-  <p class="small" id="state">منتظر تأیید در تلگرام…</p>
-  <p class="small">هنوز عضو نیستید؟ <a href="{{ bot_link() }}">در ربات تلگرام عضو شوید</a>؛ بعد از عضویت، همین‌جا وارد شوید.</p>
+  <form method="post" action="/login/password" class="stack" style="text-align:right">
+    <div class="field"><label class="lbl" for="u">نام کاربری</label>
+      <input type="text" id="u" name="username" dir="ltr" autocomplete="username" autocapitalize="none" required>
+      <div class="small">کد عضویت (مثل M-07) یا شمارهٔ تماس هم پذیرفته می‌شود.</div></div>
+    <div class="field"><label class="lbl" for="p">رمز عبور</label>
+      <input type="password" id="p" name="password" dir="ltr" autocomplete="current-password" required></div>
+    <button class="btn wide">ورود</button>
+  </form>
+  <p class="small"><a href="/forgot">رمز را فراموش کرده‌ام</a></p>
+  <p class="small">هنوز عضو نیستید؟ <a href="/app/register"><b>فرم عضویت را پر کنید</b></a>.</p>
+</section>
+
+<section class="box center">
+  <h2>یا ورود با تلگرام</h2>
+  <p>اگر در ربات تلگرام عضو شده‌اید، دکمهٔ زیر را بزنید؛ ربات کتابخانه باز می‌شود. در ربات <b>Start</b> را بزنید و به همین صفحه برگردید؛ خودکار وارد می‌شوید.</p>
+  <a class="btn wide alt" href="{{ bot_link('login_' ~ nonce) }}" target="_blank" id="go">ورود با تلگرام</a>
+  <p class="small" id="state"></p>
   <p class="small">در خود ربات هم دکمهٔ «🌐 ورود به سایت» هست که مستقیم وارد حسابتان می‌کند.</p>
 </section>
 {% endblock %}
@@ -17,22 +30,24 @@
   if (tg && tg.initData) {  // opened inside Telegram: sign in right away
     fetch('/api/login/webapp', { method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ initData: tg.initData }) }).then(function (r) { return r.json(); }).then(function (d) {
-        if (d.ok) location.href = '/me'; else state.textContent = 'هنوز در کتابخانه عضو نشده‌اید. از ربات فرم عضویت را پر کنید.';
+        if (d.ok) location.href = '/me'; else state.textContent = 'هنوز در کتابخانه عضو نشده‌اید. فرم عضویت را پر کنید.';
       });
     return;
   }
-  var nonce = {{ nonce | tojson }}, tries = 0;
+  var nonce = {{ nonce | tojson }}, tries = 0, started = false;
   function poll() {
     if (++tries > 200) { state.textContent = 'زمان ورود تمام شد؛ صفحه را دوباره باز کنید.'; return; }
     fetch('/api/login/poll?nonce=' + encodeURIComponent(nonce), { cache: 'no-store' }).then(function (r) { return r.json(); })
       .then(function (d) {
         if (d.state === 'ok') { location.href = '/me'; return; }
-        if (d.state === 'not_member') { state.textContent = 'این حساب تلگرام هنوز عضو کتابخانه نیست. اول در ربات عضو شوید.'; return; }
+        if (d.state === 'not_member') { state.textContent = 'این حساب تلگرام هنوز عضو کتابخانه نیست. اول فرم عضویت را پر کنید.'; return; }
         if (d.state === 'expired') { state.textContent = 'کد ورود منقضی شد؛ صفحه را دوباره باز کنید.'; return; }
         setTimeout(poll, 2500);
       }).catch(function () { setTimeout(poll, 4000); });
   }
-  setTimeout(poll, 2500);
+  document.getElementById('go').addEventListener('click', function () {
+    if (started) return; started = true; state.textContent = 'منتظر تأیید در تلگرام…'; setTimeout(poll, 2500);
+  });
 })();
 </script>
 {% endblock %}
