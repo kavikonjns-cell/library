@@ -1,6 +1,8 @@
-"""Read the book list from the library Excel file (sheet «کتاب‌ها»)."""
+"""Read the book list from the library Excel file (sheet «کتاب‌ها») and the HTML book list."""
 from __future__ import annotations
 
+import base64
+import html as htmllib
 import io
 import re
 from pathlib import Path
@@ -28,6 +30,46 @@ def read_excel(source: Path | bytes) -> list[dict]:
                           translator=v(3), publisher=v(4), year=v(5), topic1=v(6), topic2=v(7), short_intro=v(8),
                           condition=v(9) or "سالم", source=v(10), added_at=v(11), note=v(16)))
     return books
+
+
+def read_html(source: str | bytes) -> tuple[dict[str, str], dict[str, bytes]]:
+    """Long descriptions and JPG covers from the self-contained HTML book list, by book code."""
+    text = source.decode("utf-8") if isinstance(source, bytes) else source
+    summaries, covers = {}, {}
+    for m in re.finditer(r'<article class="book"[^>]*>(.*?)</article>', text, re.S):
+        block = m.group(1)
+        code = re.search(r'<span class="code">([^<]+)</span>', block)
+        if not code:
+            continue
+        code = code.group(1).strip().upper()
+        s = re.search(r'<p class="sum">(.*?)</p>', block, re.S)
+        if s and 'class="soon"' not in s.group(0):
+            summaries[code] = htmllib.unescape(re.sub(r"<[^>]+>", "", s.group(1))).strip()
+        img = re.search(r'src="data:image/jpeg;base64,([^"]+)"', block)
+        if img:
+            covers[code] = base64.b64decode(img.group(1))
+    return summaries, covers
+
+
+def save_covers(covers: dict[str, bytes]) -> int:
+    """Keep covers in the database, so they survive redeploys (the server's disk is not permanent)."""
+    from .jalali import today
+    with connect() as conn:
+        for code, data in covers.items():
+            conn.execute("INSERT INTO covers (code, data, updated_at) VALUES (?, ?, ?) ON CONFLICT(code) DO UPDATE SET"
+                         " data = excluded.data, updated_at = excluded.updated_at",
+                         (code, base64.b64encode(data).decode(), today().isoformat()))
+    return len(covers)
+
+
+def update_summaries(summaries: dict[str, str]) -> int:
+    """Set long descriptions of books already in the list (base code applies to every copy)."""
+    with connect() as conn:
+        n = 0
+        for code, text in summaries.items():
+            if text:
+                n += conn.execute("UPDATE books SET summary = ? WHERE base_code = ? OR code = ?", (text, code, code)).rowcount
+    return n
 
 
 def import_books(books: list[dict], summaries: dict[str, str] | None = None) -> tuple[int, int]:

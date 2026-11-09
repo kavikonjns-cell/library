@@ -145,6 +145,13 @@ CREATE TABLE IF NOT EXISTS pending_forms (
     created_at  TEXT NOT NULL
 );
 
+-- Book covers uploaded from the panel (base64 JPG), with files in app/static/covers as the fallback.
+CREATE TABLE IF NOT EXISTS covers (
+    code        TEXT PRIMARY KEY,
+    data        TEXT NOT NULL,
+    updated_at  TEXT NOT NULL
+);
+
 -- Website sign-in through the bot: the site shows a code, the member confirms it in Telegram.
 CREATE TABLE IF NOT EXISTS login_tokens (
     nonce       TEXT PRIMARY KEY,
@@ -199,6 +206,10 @@ def _pg_row_factory(cursor):
 class _PgCursor:
     def __init__(self, cur, lastrowid=None):
         self._cur, self.lastrowid = cur, lastrowid
+
+    @property
+    def rowcount(self):
+        return self._cur.rowcount
 
     def fetchone(self):
         return self._cur.fetchone()

@@ -712,7 +712,7 @@ def leave_waitlist(member_code: str, base_code: str) -> Result:
 
 
 def extension_options(member_code: str, on: dt.date | None = None) -> Result:
-    """Which new due dates the member may pick (rule 2 & 3)."""
+    """Which new due dates the member may pick: before the due date, up to the 30-day cap."""
     on = on or _today()
     with connect() as conn:
         loan = _member_open_loan(conn, member_code)
@@ -721,10 +721,6 @@ def extension_options(member_code: str, on: dt.date | None = None) -> Result:
         due, cap = _date(loan["due_date"]), max_date(loan)
         if on > due:
             return Result(False, "مهلت امانت تمام شده است؛ تمدید فقط پیش از پایان مهلت ممکن است. لطفاً کتاب را برگردانید.")
-        waiting = conn.execute("SELECT COUNT(*) FROM waitlist WHERE base_code = ? AND status = 'waiting'",
-                               (loan["base_code"],)).fetchone()[0]
-        if waiting:
-            return Result(False, f"کسی در صف انتظار «{loan['title']}» است، پس تمدید ممکن نیست. لطفاً تا {to_jalali(due)} کتاب را برگردانید.")
         if due >= cap:
             return Result(False, f"امانت شما به سقف {fa(config.LOAN_MAX_TOTAL_DAYS)} روز رسیده و بیشتر تمدید نمی‌شود.")
         choices = sorted({min(due + dt.timedelta(days=d), cap) for d in (7, 14)} | {cap})

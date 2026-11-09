@@ -85,14 +85,14 @@ def test_admin_book_import_and_loan_delete(monkeypatch, tmp_path):
     wb = Workbook(); ws = wb.active; ws.title = "کتاب‌ها"
     ws.append(["title row"]); ws.append(["note"]); ws.append(["headers"])
     ws.append(["NS-001", "بوم‌شناسی تخیلات کودکی (ویرایش)", "عظیمی"])
-    ws.append(["NS-099", "کتاب تازه", "نویسنده", "", "", "", "نوجوانی", "", "معرفی کوتاه"])
+    ws.append(["NS-999", "کتاب تازه", "نویسنده", "", "", "", "نوجوانی", "", "معرفی کوتاه"])
     buf = io.BytesIO(); wb.save(buf)
     r = c.post("/admin/books/import", files={"file": ("lib.xlsx", buf.getvalue())})
     assert "۱ نسخهٔ تازه" in r.text
     with connect() as conn:
         b1 = conn.execute("SELECT * FROM books WHERE code = 'NS-001'").fetchone()
     assert b1["title"].endswith("(ویرایش)") and b1["summary"]           # long description kept
-    assert services.get_book("NS-099")["topic1"] == "نوجوانی"
+    assert services.get_book("NS-999")["topic1"] == "نوجوانی"
     c.post("/admin/members/new", data={"name": "آزمون", "role": "سایر", "phone": "09150000000", "paid": "1"})
     c.post("/admin/loans/new", data={"book_code": "NS-001", "member_code": "M-01", "days": "14"})
     with connect() as conn:
@@ -126,3 +126,21 @@ def test_admin_delete_member_and_payment(monkeypatch):
     c.post("/admin/members/M-02/delete")
     r = services.register_member({"name": "تازه", "role": "سایر", "phone": "09150000002", "agree": True}, 9)
     assert r.data["code"] == "M-01"                              # codes start again when everyone is gone
+
+
+def test_admin_html_import_sets_descriptions_and_covers(monkeypatch):
+    import base64
+    from app import services
+    monkeypatch.setattr(config, "ADMIN_PASSWORD", "pw")
+    c = TestClient(create_app())
+    c.post("/admin/login", data={"password": "pw"})
+    jpg = b"\xff\xd8\xff\xe0fake-jpeg"
+    page = ('<main><article class="book" id="b1"><div class="meta"><span class="code">NS-001</span></div>'
+            '<p class="sum">معرفی تازه</p><img src="data:image/jpeg;base64,' + base64.b64encode(jpg).decode() + '">'
+            '</article></main>')
+    r = c.post("/admin/books/import", files={"html": ("books.html", page.encode())})
+    assert "عکس جلد ۱ کتاب" in r.text
+    assert services.get_book("NS-001")["summary"] == "معرفی تازه"
+    assert c.get("/covers/NS-001.jpg").content == jpg          # uploaded cover wins over the static file
+    assert c.get("/covers/NS-002.jpg").status_code == 200      # static fallback
+    assert c.get("/covers/NS-999.jpg").status_code == 404

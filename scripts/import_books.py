@@ -10,9 +10,6 @@ Existing books are updated by code; loans and members are not touched.
 """
 from __future__ import annotations
 
-import base64
-import html as htmllib
-import re
 import sys
 from pathlib import Path
 
@@ -20,26 +17,16 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from app import db  # noqa: E402
 from app.importer import import_books, read_excel  # noqa: E402
+from app.importer import read_html as read_html_bytes  # noqa: E402
 
 COVERS = Path(__file__).resolve().parent.parent / "app" / "static" / "covers"
 
 
 def read_html(path: Path) -> dict[str, str]:
-    text = path.read_text(encoding="utf-8")
-    summaries = {}
+    summaries, covers = read_html_bytes(path.read_bytes())
     COVERS.mkdir(parents=True, exist_ok=True)
-    for m in re.finditer(r'<article class="book"[^>]*>(.*?)</article>', text, re.S):
-        block = m.group(1)
-        code = re.search(r'<span class="code">([^<]+)</span>', block)
-        if not code:
-            continue
-        code = code.group(1).strip()
-        s = re.search(r'<p class="sum">(.*?)</p>', block, re.S)
-        if s and 'class="soon"' not in s.group(0):
-            summaries[code] = htmllib.unescape(re.sub(r"<[^>]+>", "", s.group(1))).strip()
-        img = re.search(r'src="data:image/jpeg;base64,([^"]+)"', block)
-        if img:
-            (COVERS / f"{code}.jpg").write_bytes(base64.b64decode(img.group(1)))
+    for code, data in covers.items():
+        (COVERS / f"{code}.jpg").write_bytes(data)
     return summaries
 
 

@@ -82,8 +82,8 @@ def test_waitlist_gets_book_when_returned():
     w = services.request_book(b, "NS-003", 7, TODAY)
     assert w.ok and w.data["state"] == "waiting" and w.data["position"] == 1
     assert "در امانت است و تا" in w.message
-    # nobody can extend while someone waits
-    assert not services.extension_options(a, TODAY).ok
+    # since Aban 1405 a waiting member does not block an extension
+    assert services.extension_options(a, TODAY).ok
     r = services.return_book(loan, "سالم", on=TODAY + D(days=3))
     reserved_for_b = [n for n in r.notices if n.member_code == b]
     assert reserved_for_b and "نوبت شما" in reserved_for_b[0].text
@@ -158,3 +158,10 @@ def test_lost_book_takes_copy_off_shelf_without_fine():
     r = services.return_book(loan, "گم شده", on=TODAY + D(days=20))
     assert r.data["fine"] == 0
     assert services.get_book("NS-005")["active"] == 0
+
+
+def test_schema_comments_have_no_semicolons():
+    """The schema is split on ';' for PostgreSQL: a ';' inside a comment breaks the server start."""
+    from app.db import SCHEMA
+    bad = [line for line in SCHEMA.splitlines() if "--" in line and ";" in line.split("--", 1)[1]]
+    assert bad == []

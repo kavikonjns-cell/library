@@ -7,12 +7,12 @@ from pathlib import Path
 from urllib.parse import quote
 
 from fastapi import FastAPI, Form, HTTPException, Request
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 
-from . import club, config, exporter, importer, jalali, member_web, notify, services
+from . import club, config, covers, exporter, importer, jalali, member_web, notify, services
 from .db import connect, upsert_books
 from .telegram_auth import validate_init_data
 
@@ -20,7 +20,7 @@ HERE = Path(__file__).resolve().parent
 templates = Jinja2Templates(directory=HERE / "templates")
 templates.env.globals.update(
     cfg=config, fa=jalali.fa, money=jalali.money, jdate=jalali.to_jalali, jlong=jalali.to_jalali_long,
-    quote=quote, today_long=lambda: jalali.to_jalali_long(jalali.today()), cover_url=lambda code: f"/static/covers/{code}.jpg" if (HERE / "static" / "covers" / f"{code}.jpg").exists() else "",
+    quote=quote, today_long=lambda: jalali.to_jalali_long(jalali.today()), cover_url=lambda code: covers.url(code),
 )
 
 
@@ -112,6 +112,13 @@ def _public_routes(app: FastAPI) -> None:
         notices = club.evening_reminders()
         await notify.deliver(notices)
         return {"ok": True, "notices": len(notices)}
+
+    @app.get("/covers/{code}.jpg")
+    async def cover(code: str):
+        data = covers.data(code.upper())
+        if not data:
+            raise HTTPException(404)
+        return Response(data, media_type="image/jpeg", headers={"Cache-Control": "public, max-age=86400"})
 
     @app.get("/health")
     async def health():
@@ -342,20 +349,37 @@ def _admin_routes(app: FastAPI) -> None:
 
     @app.post("/admin/books/import")
     async def books_import(request: Request):
+        """Excel file (book list) and/or the HTML book list (long descriptions and covers)."""
         _guard(request)
         f = await request.form()
-        upload = f.get("file")
-        if not upload or not getattr(upload, "filename", ""):
-            return _back(request, "فایل اکسل را انتخاب کنید.", False)
-        try:
-            books = importer.read_excel(await upload.read())
-        except Exception as e:  # noqa: BLE001 - a broken file must show a message, not crash
-            return _back(request, f"فایل خوانده نشد: {e}", False)
-        if not books:
-            return _back(request, "در برگهٔ «کتاب‌ها» کتابی پیدا نشد.", False)
-        added, updated = importer.import_books(books)
-        return _back(request, f"فهرست کتاب‌ها به‌روز شد: {jalali.fa(added)} نسخهٔ تازه، {jalali.fa(updated)} نسخهٔ به‌روزشده.",
-                     True, "/admin/books")
+        xlsx, page = f.get("file"), f.get("html")
+        has = lambda u: bool(u) and bool(getattr(u, "filename", ""))  # noqa: E731
+        if not has(xlsx) and not has(page):
+            return _back(request, "فایل اکسل یا فایل HTML فهرست کتاب‌ها را انتخاب کنید.", False)
+        parts = []
+        summaries, cover_files = {}, {}
+        if has(page):
+            try:
+                summaries, cover_files = importer.read_html(await page.read())
+            except Exception as e:  # noqa: BLE001 - a broken file must show a message, not crash
+                return _back(request, f"فایل HTML خوانده نشد: {e}", False)
+        if has(xlsx):
+            try:
+                books = importer.read_excel(await xlsx.read())
+            except Exception as e:  # noqa: BLE001
+                return _back(request, f"فایل اکسل خوانده نشد: {e}", False)
+            if not books:
+                return _back(request, "در برگهٔ «کتاب‌ها» کتابی پیدا نشد.", False)
+            added, updated = importer.import_books(books, summaries)
+            parts.append(f"{jalali.fa(added)} نسخهٔ تازه، {jalali.fa(updated)} نسخهٔ به‌روزشده")
+        if summaries:
+            parts.append(f"معرفی {jalali.fa(len(set(summaries)))} کتاب")
+            importer.update_summaries(summaries)
+        if cover_files:
+            importer.save_covers(cover_files)
+            covers.forget()
+            parts.append(f"عکس جلد {jalali.fa(len(cover_files))} کتاب")
+        return _back(request, "فهرست کتاب‌ها به‌روز شد: " + "، ".join(parts) + ".", True, "/admin/books")
 
     @app.post("/admin/books/save")
     async def book_save(request: Request):

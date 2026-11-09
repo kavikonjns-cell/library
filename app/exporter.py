@@ -8,7 +8,7 @@ from pathlib import Path
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 
-from . import config, jalali, services
+from . import config, covers, jalali, services
 from .db import connect
 
 HERE = Path(__file__).resolve().parent
@@ -110,11 +110,9 @@ def static_catalog_html(groups) -> str:
     """
     from .web import templates  # late import: web imports this module
 
-    covers = HERE / "static" / "covers"
-
     def cover(code: str) -> str:
-        p = covers / f"{code}.jpg"
-        return _data_uri(p, "image/jpeg") if p.exists() else ""
+        data = covers.data(code)
+        return "data:image/jpeg;base64," + base64.b64encode(data).decode() if data else ""
 
     css = (HERE / "static" / "style.css").read_text(encoding="utf-8")
     tpl = templates.get_template("catalog.html")
