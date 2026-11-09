@@ -158,12 +158,22 @@ CREATE TABLE IF NOT EXISTS login_tokens (
     tg_user_id  BIGINT,
     created_at  TEXT NOT NULL
 );
+
+-- One-time links for choosing a new website password (sent by the bot).
+CREATE TABLE IF NOT EXISTS password_resets (
+    token       TEXT PRIMARY KEY,
+    member_code TEXT NOT NULL,
+    created_at  TEXT NOT NULL
+);
 """
 
 # Columns added after the first release; init_db adds them to existing databases.
 MIGRATIONS = {
     "members": [("club", "INTEGER NOT NULL DEFAULT 0"), ("club_joined_at", "TEXT DEFAULT ''"),
-                ("public_profile", "INTEGER NOT NULL DEFAULT 1")],
+                ("public_profile", "INTEGER NOT NULL DEFAULT 1"),
+                # website sign-in with a username and password (signup on the website)
+                ("username", "TEXT NOT NULL DEFAULT ''"), ("password_hash", "TEXT NOT NULL DEFAULT ''"),
+                ("password_enc", "TEXT NOT NULL DEFAULT ''")],
     "loans": [("finished", "INTEGER NOT NULL DEFAULT 0"), ("rating", "INTEGER NOT NULL DEFAULT 0")],
 }
 
@@ -306,6 +316,7 @@ def _migrate(conn) -> None:
         for name, ddl in cols:
             if name not in have:
                 conn.execute(f"ALTER TABLE {table} ADD COLUMN {name} {ddl}")
+    conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS members_username ON members (username) WHERE username != ''")
 
 
 def init_db(seed: bool = True) -> None:

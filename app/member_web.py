@@ -6,7 +6,7 @@ import datetime as dt
 from fastapi import FastAPI, HTTPException, Request, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse
 
-from . import auth, club, config, jalali, notify, services
+from . import accounts, auth, club, config, jalali, notify, services
 from .db import connect
 from .telegram_auth import validate_init_data
 
@@ -104,6 +104,75 @@ def member_routes(app: FastAPI, templates) -> None:
             return _flash(request, "این لینک ورود منقضی شده است. از ربات دوباره «🌐 ورود به سایت» را بزنید.", False, "/login")
         return RedirectResponse("/me", status_code=303)
 
+    # ------------------------------------------------------------- username + password
+    @app.post("/login/password")
+    async def login_password(request: Request):
+        f = await request.form()
+        m = accounts.authenticate(str(f.get("username", "")), str(f.get("password", "")))
+        if not m:
+            return _flash(request, "نام کاربری یا رمز عبور درست نیست.", False, "/login")
+        request.session["member"] = m["code"]
+        return RedirectResponse("/me", status_code=303)
+
+    @app.post("/api/register/web")
+    async def register_web(request: Request):
+        """Full signup on the website: membership form + username and password, no Telegram needed."""
+        body = await request.json()
+        form = body.get("form") or {}
+        if not form.get("username") or not form.get("password"):
+            return {"ok": False, "message": "نام کاربری و رمز عبور را بنویسید."}
+        res = services.register_member(form)
+        if res.ok:
+            request.session["member"] = res.data["code"]
+            await notify.deliver(res.notices)
+        return {"ok": res.ok, "message": res.message, **res.data}
+
+    @app.get("/forgot", response_class=HTMLResponse)
+    async def forgot_page(request: Request):
+        return render(request, "member/forgot.html", sent=False)
+
+    @app.post("/forgot", response_class=HTMLResponse)
+    async def forgot(request: Request):
+        f = await request.form()
+        m = accounts.find_member(str(f.get("who", "")))
+        via_bot = False
+        if m and m["tg_user_id"]:
+            link = f"{config.BASE_URL}/reset/{accounts.new_reset(m['code'])}"
+            await notify.send(m["tg_user_id"], "🔑 برای انتخاب رمز تازهٔ سایت کتابخانه این لینک را باز کنید"
+                                               f" (تا ۳۰ دقیقه اعتبار دارد):\n{link}\n\n"
+                                               "اگر شما درخواست نداده‌اید، این پیام را نادیده بگیرید.")
+            via_bot = True
+        elif m:
+            await notify.deliver([services.Notice(
+                admins=True, text=f"🔑 {m['code']} ({m['name']}) در سایت گفت رمزش را فراموش کرده است و تلگرامش وصل نیست."
+                                  f"\nتماس: {jalali.fa(m['phone'])}\nدر پنل، صفحهٔ این عضو، «رمز تازه» را بزنید و رمز را به او بگویید.")])
+        return render(request, "member/forgot.html", sent=True, via_bot=via_bot)
+
+    @app.get("/reset/{token}", response_class=HTMLResponse)
+    async def reset_page(request: Request, token: str):
+        code = accounts.reset_member(token)
+        m = services.get_member(code) if code else None
+        return render(request, "member/reset.html", token=token, valid=bool(m),
+                      username=(m["username"] if m else ""), needs_username=bool(m and not m["username"]))
+
+    @app.post("/reset/{token}")
+    async def reset(request: Request, token: str):
+        f = await request.form()
+        password = str(f.get("password", ""))
+        if password != str(f.get("password2", "")):
+            return _flash(request, "دو رمزی که نوشتید با هم یکی نیستند.", False, f"/reset/{token}")
+        code = accounts.reset_member(token)
+        m = services.get_member(code) if code else None
+        if m and not m["username"]:  # member from the bot choosing a username for the first time
+            problem = accounts.set_credentials(code, str(f.get("username", "")), password)
+            if problem:
+                return _flash(request, problem, False, f"/reset/{token}")
+        code, problem = accounts.use_reset(token, password)
+        if problem:
+            return _flash(request, problem, False, f"/reset/{token}" if accounts.reset_member(token) else "/forgot")
+        request.session["member"] = code
+        return _flash(request, "✅ رمز تازه ذخیره شد و وارد حسابتان شدید.")
+
     @app.get("/logout")
     async def logout(request: Request):
         request.session.pop("member", None)
@@ -154,6 +223,8 @@ def member_routes(app: FastAPI, templates) -> None:
                 res = services.Result(False, "زمان مطالعه را به دقیقه بنویسید.")
         elif action == "suggest":
             res = club.suggest(code, str(f.get("title", "")))
+        elif action == "account":
+            res = _account(m, f)
         else:
             raise HTTPException(404)
         return await _done(request, res)
@@ -173,6 +244,18 @@ def member_routes(app: FastAPI, templates) -> None:
         if m["payment_status"] != "paid":
             services.attach_receipt(m["code"], file_id)
         return _flash(request, "🧾 فیش دریافت شد و برای مسئول کتابخانه فرستاده شد. بعد از بررسی خبرتان می‌کنیم.")
+
+    def _account(m, f) -> services.Result:
+        """Choose or change the website username and password from «حساب من»."""
+        if m["password_hash"] and not accounts.check_password(str(f.get("current", "")), m["password_hash"]):
+            return services.Result(False, "رمز فعلی درست نیست.")
+        password = str(f.get("password", ""))
+        if password != str(f.get("password2", "")):
+            return services.Result(False, "دو رمزی که نوشتید با هم یکی نیستند.")
+        problem = accounts.set_credentials(m["code"], str(f.get("username", "")) or m["username"], password)
+        if problem:
+            return services.Result(False, problem)
+        return services.Result(True, "✅ نام کاربری و رمز ذخیره شد. از این به بعد با آن‌ها هم می‌توانید وارد سایت شوید.")
 
     def _feedback(code: str, loan_id: int, text: str) -> services.Result:
         text = text.strip()

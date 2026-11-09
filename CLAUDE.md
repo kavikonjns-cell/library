@@ -30,7 +30,13 @@ of Esfand (from 1 Dey: end of Esfand next year); fees by role 600k / 800k / 1M t
   finished the book (+ rating). Non-club members just borrow and return. Ideas come from the owner's earlier
   reading app «باروباه/کتاب‌بازی» (study log, streaks, best users).
 - `CLUB_ONLY_LIBRARY_BOOKS=1`: only borrowed library books can be logged (owner may change this later).
-- Membership is created only in the Telegram bot. Website sign-in = Telegram: `/login` shows a one-time code
+- Website signup (owner request, Aban 1405): `/app/register` in an ordinary browser asks for a username + password and
+  creates the member directly (`/api/register/web`, `app/accounts.py`). Sign-in with username/password at `/login`
+  (member code or phone also accepted as the username). Forgot password: `/forgot` → bot sends `/reset/<token>` if the
+  member is linked to Telegram, otherwise librarians are notified and set a new one in the admin member page.
+  The OWNER CHOSE that librarians can see members' passwords: `password_hash` (scrypt) is used for sign-in and
+  `password_enc` (Fernet, key derived from SECRET_KEY) is shown in the admin member page. Don't log or export passwords.
+- Telegram sign-in still works: `/login` shows a one-time code
   opened in the bot (`/start login_<nonce>`), or the bot's «🌐 ورود به سایت» sends a one-time link; inside the
   mini-app sign-in is automatic (initData). `/me` = full member area (loan, extend, waitlist, receipt upload,
   club log, feedback, suggestions, inbox). Every member Notice is also stored in the website inbox.

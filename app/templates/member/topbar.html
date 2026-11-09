@@ -4,6 +4,6 @@
     <a href="/">کتاب‌ها</a>
     <a href="/club">کلوپ</a>
     {% if member %}<a href="/me" class="me-link">👤 {{ member.name.split()[0] if member.name else 'حساب من' }}</a>
-    {% else %}<a href="/login" class="me-link">ورود</a>{% endif %}
+    {% else %}<a href="/app/register">عضویت</a> <a href="/login" class="me-link">ورود</a>{% endif %}
   </span>
 </nav>

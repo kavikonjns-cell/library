@@ -18,7 +18,7 @@
   <p class="intro">کتابخانه کودک و طبیعت کاوی کنج تلاشی است برای گردآوری و در دسترس قرار دادن کتاب‌های مرتبط با حوزه کودک و طبیعت برای والدین، مربیان، تسهیلگران، پژوهشگران و همه کسانی که دغدغه کودکی و طبیعت را دارند. کتابخانه با هدف درآمدزایی راه‌اندازی نشده است و حق عضویت اعضا صرف توسعه کتابخانه و افزایش تعداد و تنوع کتاب‌ها می‌شود. در حال حاضر، خدمات کتابخانه صرفاً به ساکنان شهر مشهد ارائه می‌شود.</p>
 </header>
 
-<div class="notice hidden" id="outside">این فرم را بیرون از تلگرام باز کرده‌اید. اشکالی ندارد: فرم را پر کنید؛ در پایان ربات کتابخانه باز می‌شود و با زدن <b>Start</b> ثبت‌نام خودکار تمام می‌شود.</div>
+<div class="notice hidden" id="outside">فرم را پر کنید و برای خودتان نام کاربری و رمز بگذارید؛ ثبت‌نام همین‌جا کامل می‌شود و کد عضویت را فوراً می‌گیرید. قبلاً عضو شده‌اید؟ <a href="/login">وارد شوید</a>.</div>
 
 <form id="f" novalidate onsubmit="return false;">
 <section class="box">
@@ -59,6 +59,27 @@
   </div>
 </section>
 
+<section class="box hidden" id="acct">
+  <h2>نام کاربری و رمز سایت</h2>
+  <div class="field" id="f-user">
+    <label class="lbl" for="user">نام کاربری <span class="req">*</span></label>
+    <input type="text" id="user" dir="ltr" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="مثلاً sara.ahmadi">
+    <div class="small">۳ تا ۳۲ حرف انگلیسی؛ با حرف شروع شود؛ فقط حرف، عدد، نقطه یا _.</div>
+    <div class="err">نام کاربری درست نیست.</div>
+  </div>
+  <div class="field" id="f-pass">
+    <label class="lbl" for="pass">رمز عبور <span class="req">*</span></label>
+    <input type="password" id="pass" dir="ltr" autocomplete="new-password">
+    <div class="err">رمز باید دست‌کم ۶ حرف یا عدد باشد.</div>
+  </div>
+  <div class="field" id="f-pass2">
+    <label class="lbl" for="pass2">تکرار رمز عبور <span class="req">*</span></label>
+    <input type="password" id="pass2" dir="ltr" autocomplete="new-password">
+    <div class="err">دو رمز با هم یکی نیستند.</div>
+  </div>
+  <div class="small">اگر رمز را فراموش کنید، از صفحهٔ ورود «رمز را فراموش کرده‌ام» را بزنید.</div>
+</section>
+
 <section class="box">
   <h2>موضوع‌های مورد علاقه <span class="small">(اختیاری)</span></h2>
   <div class="opts">{% for t in cfg.MEMBER_TOPICS %}<label class="opt"><input type="checkbox" name="topic" value="{{ t }}"><span>{{ t }}</span></label>{% endfor %}</div>
@@ -74,7 +95,7 @@
   <div class="small" style="margin-top:8px">اگر امروز ثبت‌نام کنید، عضویت شما تا پایان اسفند {{ valid_year }} اعتبار دارد.</div>
   <div class="card"><div class="small">واریز به کارت کتابخانه:</div><div class="cardno">{{ fa(cfg.CARD_NUMBER[0:4] ~ ' ' ~ cfg.CARD_NUMBER[4:8] ~ ' ' ~ cfg.CARD_NUMBER[8:12] ~ ' ' ~ cfg.CARD_NUMBER[12:16]) }}</div><div class="small">به نام {{ cfg.CARD_OWNER }}</div>
     <button type="button" class="btn alt" id="copycard" style="margin-top:8px">کپی شمارۀ کارت</button></div>
-  <div class="small" style="margin-top:6px">بعد از ثبت فرم، عکس فیش واریز را در ربات بفرستید. حق عضویت بازگردانده نمی‌شود.</div>
+  <div class="small" style="margin-top:6px">بعد از ثبت فرم، عکس فیش واریز را در «حساب من» در سایت یا در ربات بفرستید. حق عضویت بازگردانده نمی‌شود.</div>
 </section>
 
 <section class="box">
@@ -106,13 +127,7 @@
   <div>کد عضویت شما</div><div class="big" id="code"></div>
   <div class="result" id="okmsg" style="text-align:right"></div>
   <button type="button" class="btn wide" id="closeApp">بازگشت به ربات</button>
-</section>
-
-<section class="box hidden center" id="out">
-  <h2>یک قدم مانده</h2>
-  <p>فرم شما ذخیره شد. دکمهٔ زیر را بزنید تا ربات کتابخانه باز شود و در آن <b>Start</b> را بزنید؛ ثبت‌نام خودکار تمام می‌شود و کد عضویت را همان‌جا می‌گیرید.</p>
-  <a class="btn wide" id="finish" href="{{ bot_link() }}">تکمیل ثبت‌نام در تلگرام</a>
-  <p class="small">این لینک تا ۲ روز اعتبار دارد.</p>
+  <a class="btn wide hidden" id="gome" href="/me">رفتن به «حساب من» و فرستادن فیش</a>
 </section>
 
 <footer><div class="slogan">{{ cfg.SLOGAN }}</div><div>{{ cfg.LIBRARY_NAME }} · تأسیس ۱۴۰۵</div></footer>
@@ -126,7 +141,8 @@
   var inApp = !!(tg && tg.initData);
   // Opened from the bot's bottom-menu button: Telegram gives no initData there, but sendData() works
   var keyboardApp = !inApp && !!(tg && tg.sendData && tg.platform && tg.platform !== 'unknown');
-  if (inApp || keyboardApp) { tg.ready(); tg.expand(); } else { $('outside').classList.remove('hidden'); }
+  var web = !inApp && !keyboardApp;  // ordinary browser: full signup with a username and password
+  if (!web) { tg.ready(); tg.expand(); } else { $('outside').classList.remove('hidden'); $('acct').classList.remove('hidden'); }
   var FA = '۰۱۲۳۴۵۶۷۸۹', AR = '٠١٢٣٤٥٦٧٨٩';
   var en = function (s) { return String(s).replace(/[۰-۹٠-٩]/g, function (c) { var k = FA.indexOf(c); return k >= 0 ? k : AR.indexOf(c); }); };
   var fa = function (s) { return String(s).replace(/[0-9]/g, function (d) { return FA.charAt(+d); }); };
@@ -154,12 +170,18 @@
     ok = mark('f-other', !!r && r.value === 'سایر' && !$('other').value.trim()) && ok;
     ok = mark('f-phone', !/^(\+98|0098|0)?9\d{9}$/.test(phone)) && ok;
     ok = mark('f-agree', !$('agree').checked) && ok;
+    if (web) {
+      ok = mark('f-user', !/^[a-z][a-z0-9_.]{2,31}$/.test(en($('user').value).trim().toLowerCase())) && ok;
+      ok = mark('f-pass', $('pass').value.length < 6) && ok;
+      ok = mark('f-pass2', $('pass').value !== $('pass2').value) && ok;
+    }
     if (!ok) { var b = document.querySelector('.bad'); if (b) b.scrollIntoView({ block: 'center' }); return null; }
     return {
       name: $('name').value.trim(), role: r.value, role_other: $('other').value.trim(),
       child_name: $('child').value.trim(), child_group: $('group').value.trim(), phone: phone,
       tg_phone: en($('tg').value).replace(/[\s\-]/g, ''), wish: $('wish').value.trim(), agree: true,
-      topics: qa('input[name=topic]').filter(function (x) { return x.checked; }).map(function (x) { return x.value; })
+      topics: qa('input[name=topic]').filter(function (x) { return x.checked; }).map(function (x) { return x.value; }),
+      username: web ? en($('user').value).trim().toLowerCase() : undefined, password: web ? $('pass').value : undefined
     };
   }
 
@@ -172,17 +194,17 @@
       return;
     }
     btn.disabled = true; btn.textContent = 'در حال ثبت…';
-    if (!inApp) {  // ordinary browser: keep the form on the server, finish with one tap in the bot
-      fetch('/api/register/pending', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+    if (web) {
+      fetch('/api/register/web', { method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ form: f }) })
         .then(function (r) { return r.json(); })
         .then(function (r) {
           btn.disabled = false; btn.textContent = 'ثبت عضویت';
           if (!r.ok) { alert(r.message || 'خطا در ثبت'); return; }
-          $('finish').href = r.link;
-          $('f').classList.add('hidden'); $('outside').classList.add('hidden'); $('out').classList.remove('hidden');
+          $('code').textContent = r.code; $('okmsg').textContent = r.message;
+          $('closeApp').classList.add('hidden'); $('gome').classList.remove('hidden');
+          $('f').classList.add('hidden'); $('outside').classList.add('hidden'); $('ok').classList.remove('hidden');
           window.scrollTo(0, 0);
-          window.location.href = r.link;  // open the bot right away
         })
         .catch(function () { btn.disabled = false; btn.textContent = 'ثبت عضویت'; alert('ارتباط برقرار نشد. دوباره امتحان کنید.'); });
       return;

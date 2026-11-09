@@ -118,6 +118,21 @@
   <form method="post" action="/me/suggest" class="inline"><input type="text" name="title" placeholder="نام کتاب یا موضوع" required><button class="btn sm">ثبت</button></form>
 </section>
 
+<section class="box" id="account">
+  <h2>🔑 ورود به سایت با نام کاربری و رمز</h2>
+  {% if m.username %}<p>نام کاربری شما: <b class="mono" dir="ltr">{{ m.username }}</b></p>
+  {% else %}<p class="small">برای ورود بدون تلگرام، یک نام کاربری و رمز انتخاب کنید.</p>{% endif %}
+  <details {{ '' if m.username else 'open' }}><summary>{{ 'تغییر نام کاربری یا رمز' if m.username else 'انتخاب نام کاربری و رمز' }}</summary>
+  <form method="post" action="/me/account" class="stack" style="margin-top:10px">
+    <label>نام کاربری<input type="text" name="username" value="{{ m.username }}" dir="ltr" autocomplete="username" required></label>
+    {% if m.password_hash %}<label>رمز فعلی<input type="password" name="current" dir="ltr" autocomplete="current-password" required></label>{% endif %}
+    <label>رمز تازه<input type="password" name="password" dir="ltr" autocomplete="new-password" minlength="6" required></label>
+    <label>تکرار رمز تازه<input type="password" name="password2" dir="ltr" autocomplete="new-password" minlength="6" required></label>
+    <div><button class="btn sm">ذخیره</button></div>
+  </form></details>
+  {% if not m.tg_user_id %}<p class="small">برای این‌که یادآوری‌ها در تلگرام هم برسد، در <a href="{{ bot_link() }}">ربات</a> «🔗 قبلاً عضو شده‌ام» را بزنید و کد عضویت ({{ m.code }}) و شمارهٔ تماستان را بفرستید.</p>{% endif %}
+</section>
+
 <section class="box">
   <h2>✉️ پیام‌ها</h2>
   {% for msg in inbox %}
