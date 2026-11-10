@@ -1,8 +1,7 @@
 {% extends "site_base.html" %}
-{% from "_macros.html" import icon %}
+{% from "_macros.html" import icon, cover, tile %}
 {% block title %}{{ cfg.LIBRARY_NAME }}{% endblock %}
 {% block main %}
-{% macro cover(b, cls='book-cover') %}{% set c = cover_url(b.code) %}{% if c %}<img class="{{ cls }}" src="{{ c }}" alt="{{ b.title }}" loading="lazy" width="180" height="270">{% else %}<div class="cover-fallback {{ 'thumb' if cls != 'book-cover' }}" role="img" aria-label="{{ b.title }}">{{ b.title }}</div>{% endif %}{% endmacro %}
 
 <section class="container hero" aria-labelledby="heroTitle">
   <div>
@@ -64,15 +63,7 @@
     </form>
     {% if books %}
     <ul class="book-grid">
-      {% for b in books %}
-      <li class="book-tile {{ 'hide-mobile' if loop.index > 4 }}">
-        <a class="cover-link" href="/books#book-{{ b.code }}" tabindex="-1" aria-hidden="true">{{ cover(b) }}</a>
-        <h3 class="book-title"><a href="/books#book-{{ b.code }}">{{ b.title }}</a></h3>
-        {% if b.author %}<p class="book-author">{{ b.author }}</p>{% endif %}
-        {% set r = ratings.get(b.code) %}
-        <p class="book-rating">{% if r and r.n %}<span role="img" aria-label="امتیاز {{ fa(r.avg) }} از ۵، از {{ fa(r.n) }} نظر">★ {{ fa(r.avg) }} ({{ fa(r.n) }} نظر)</span>{% else %}هنوز نظری ثبت نشده{% endif %}</p>
-        <span class="availability" data-state="{{ b.status.state }}">{{ b.status_label }}</span>
-      </li>
+      {% for b in books %}{{ tile(b, ratings, loop.index > 4) }}
       {% endfor %}
     </ul>
     {% else %}
@@ -89,8 +80,8 @@
     <ul class="recommendations">
       {% for it in picks['items'] %}{% set b = it.book %}
       <li class="recommendation">
-        <a class="cover-link" href="/books#book-{{ b.code }}" tabindex="-1" aria-hidden="true">{{ cover(b, 'thumb') }}</a>
-        <div><h3><a href="/books#book-{{ b.code }}">{{ b.title }}</a></h3>
+        <a class="cover-link" href="/books/{{ b.code }}" tabindex="-1" aria-hidden="true">{{ cover(b, 'thumb') }}</a>
+        <div><h3><a href="/books/{{ b.code }}">{{ b.title }}</a></h3>
           <p>{{ it.reason }}</p>
           <span class="availability" data-state="{{ b.status.state }}">{{ b.status_label }}</span></div>
       </li>{% endfor %}

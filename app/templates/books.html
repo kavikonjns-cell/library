@@ -1,0 +1,59 @@
+{% extends "site_base.html" %}
+{% from "_macros.html" import icon, tile %}
+{% block title %}فهرست کتاب‌ها · {{ cfg.LIBRARY_NAME }}{% endblock %}
+{% block main %}
+<section class="container books-page" aria-labelledby="booksTitle">
+  <div class="books-head">
+    <h1 id="booksTitle" class="accent-title">فهرست کتاب‌ها</h1>
+    <p class="books-sub">وضعیت قفسه: <bdi>{{ now }}</bdi> · <span id="resultCount" role="status">{{ fa(total) }} کتاب{{ ' پیدا شد' if filtered }}</span></p>
+  </div>
+  <form class="search" role="search" method="get" action="/books">
+    <label class="sr-only" for="q">جست‌وجوی کتاب</label>
+    <input id="q" type="search" name="q" value="{{ q }}" placeholder="نام کتاب، نویسنده، موضوع یا کد (مثل NS-012)…" autocomplete="off">
+    {% if category %}<input type="hidden" name="category" value="{{ category }}">{% endif %}
+    {% if available %}<input type="hidden" name="available" value="1">{% endif %}
+    {% if sort != 'newest' %}<input type="hidden" name="sort" value="{{ sort }}">{% endif %}
+    <button class="icon-button" type="submit" aria-label="جست‌وجو">{{ icon('search') }}</button>
+  </form>
+  {% if filtered %}<p><a class="catalogue-reset" href="{{ clear_href }}">پاک کردن فیلترها</a></p>{% endif %}
+  <nav class="topic-nav" aria-label="موضوع‌ها">
+    {% for t in tabs %}<a href="{{ t.href }}" {% if t.active %}aria-current="true"{% endif %}>{{ t.label }} <span class="tab-count">({{ fa(t.count) }})</span></a>{% endfor %}
+  </nav>
+  <form class="filter-row" method="get" action="/books" id="filters">
+    {% if q %}<input type="hidden" name="q" value="{{ q }}">{% endif %}
+    {% if category %}<input type="hidden" name="category" value="{{ category }}">{% endif %}
+    <label class="check-label"><input type="checkbox" name="available" value="1" {{ 'checked' if available }}> فقط موجود در قفسه</label>
+    <label for="sort">مرتب‌سازی:
+      <select name="sort" id="sort"><option value="newest" {{ 'selected' if sort == 'newest' }}>جدیدترین</option><option value="title" {{ 'selected' if sort == 'title' }}>الفبایی</option><option value="rating" {{ 'selected' if sort == 'rating' }}>بیشترین امتیاز</option></select></label>
+    <noscript><button class="button" type="submit">اعمال</button></noscript>
+  </form>
+
+  {% if groups %}
+  <div id="results">
+  {% for topic, items in groups %}
+  <section class="catalogue-group" aria-labelledby="g{{ loop.index }}">
+    <h2 class="catalogue-group-title accent-title" id="g{{ loop.index }}">{{ topic }} · {{ fa(items|length) }}</h2>
+    <ul class="full-catalogue-grid">{% for b in items %}{{ tile(b, ratings) }}{% endfor %}</ul>
+  </section>
+  {% endfor %}
+  </div>
+  {% if pages > 1 %}
+  <nav class="pagination" aria-label="صفحه‌بندی">
+    {% if prev_href %}<a href="{{ prev_href }}" rel="prev" aria-label="صفحهٔ قبل">{{ icon('arrow-left') }}</a>{% endif %}
+    {% for n, h, cur in page_hrefs %}<a href="{{ h }}" {% if cur %}aria-current="page"{% endif %}>{{ fa(n) }}</a>{% endfor %}
+    {% if next_href %}<a href="{{ next_href }}" rel="next" aria-label="صفحهٔ بعد" class="flip">{{ icon('arrow-left') }}</a>{% endif %}
+  </nav>
+  {% endif %}
+  {% else %}
+  <div class="result-state"><h3>کتابی پیدا نشد</h3><p>کتابی با این مشخصات پیدا نشد.</p><a class="button" href="{{ clear_href }}">پاک کردن فیلترها</a></div>
+  {% endif %}
+</section>
+<dialog class="book-dialog" id="bookDialog" aria-labelledby="dlgTitle"><div id="dlgBody" aria-live="polite"></div></dialog>
+<script>window.BOOKS_SIGNED_IN = {{ 'true' if member else 'false' }};</script>
+<script src="/static/site/catalogue.js" defer></script>
+<script>
+  document.querySelectorAll('#filters input[type=checkbox], #filters select').forEach(function (el) {
+    el.addEventListener('change', function () { document.getElementById('filters').submit(); });
+  });
+</script>
+{% endblock %}

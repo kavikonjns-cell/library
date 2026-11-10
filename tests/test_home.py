@@ -34,12 +34,6 @@ def test_member_loan_strip_and_logout(monkeypatch):
     assert 'aria-label="امانت من"' not in c.get("/").text
 
 
-def test_full_catalogue_and_anchor():
-    c = TestClient(create_app())
-    t = c.get("/books").text
-    assert 'data-anchor="book-NS-001"' in t and "NS-001" in t
-
-
 def test_member_with_interests_sees_discovery_band():
     c = TestClient(create_app())
     c.post("/api/register/web", json={"form": {"name": "سارا", "role": "سایر", "phone": "09151112233", "agree": True,

@@ -25,6 +25,11 @@ def sign_in(request: Request, tg_user_id: int):
     return m
 
 
+def _safe_next(url: str) -> str:
+    """Only same-site paths (no //host, no scheme) so «بعد از ورود برگرد به کتاب» cannot be an open redirect."""
+    return url if url.startswith("/") and not url.startswith("//") and "\\" not in url else ""
+
+
 def _flash(request: Request, msg: str, ok: bool = True, to: str = "/me"):
     request.session["flash"] = {"msg": msg, "ok": ok}
     return RedirectResponse(to, status_code=303)
@@ -78,7 +83,7 @@ def member_routes(app: FastAPI, templates) -> None:
         if current_member(request):
             return RedirectResponse("/me", status_code=303)
         nonce = auth.new_nonce()
-        return render(request, "member/login.html", nonce=nonce, member=None)
+        return render(request, "member/login.html", nonce=nonce, member=None, next=_safe_next(request.query_params.get("next", "")))
 
     @app.get("/api/login/poll")
     async def login_poll(request: Request, nonce: str):
@@ -112,7 +117,7 @@ def member_routes(app: FastAPI, templates) -> None:
         if not m:
             return _flash(request, "نام کاربری یا رمز عبور درست نیست.", False, "/login")
         request.session["member"] = m["code"]
-        return RedirectResponse("/me", status_code=303)
+        return RedirectResponse(_safe_next(str(f.get("next", ""))) or "/me", status_code=303)
 
     @app.post("/api/register/web")
     async def register_web(request: Request):
