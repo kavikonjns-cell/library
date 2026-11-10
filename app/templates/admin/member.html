@@ -5,7 +5,7 @@
 <section class="box" style="white-space:pre-line">{{ summary }}</section>
 
 <h2>کارها</h2>
-<p>
+<div class="actions">
   {% if m.payment_status != 'paid' %}
   <form method="post" action="/admin/members/{{ m.code }}/approve" style="display:inline"><select name="method">{% for x in cfg.PAYMENT_METHODS %}<option>{{ x }}</option>{% endfor %}</select> <button class="btn sm">تأیید پرداخت ({{ money(m.fee) }})</button></form>
   <form method="post" action="/admin/members/{{ m.code }}/reject" style="display:inline"><input type="text" name="reason" placeholder="دلیل رد فیش" style="width:auto"> <button class="btn sm gray">رد فیش</button></form>
@@ -14,19 +14,20 @@
   {% if m.status == 'revoked' %}
   <form method="post" action="/admin/members/{{ m.code }}/activate" style="display:inline"><button class="btn sm">فعال کردن</button></form>
   {% else %}
-  <form method="post" action="/admin/members/{{ m.code }}/revoke" style="display:inline" onsubmit="return confirm('عضویت باطل شود؟')"><button class="btn sm gray">ابطال عضویت</button></form>
+  <form method="post" action="/admin/members/{{ m.code }}/revoke" style="display:inline" onsubmit="return confirm('عضویت باطل شود؟')"><button class="btn sm gray">⛔ ابطال عضویت</button></form>
   {% endif %}
-</p>
+</div>
 
-<p><form method="post" action="/admin/members/{{ m.code }}/delete" style="display:inline"
+<div class="danger-zone"><form method="post" action="/admin/members/{{ m.code }}/delete"
   onsubmit="return confirm('عضو {{ m.code }} و همهٔ امانت‌ها، پرداخت‌ها و گزارش‌هایش کاملاً پاک شود؟ این کار برگشت ندارد. (فقط برای عضو اشتباه یا آزمایشی)')">
-  <button class="btn sm gray">🗑 پاک کردن کامل این عضو</button></form></p>
+  <button class="btn sm danger">🗑 پاک کردن کامل این عضو</button></form>
+  <span class="small">فقط برای عضو اشتباه یا آزمایشی؛ همهٔ امانت‌ها و سوابق او هم پاک می‌شود.</span></div>
 
 <h2>ورود به سایت</h2>
 <section class="box">
   {% if m.username %}
   <p>نام کاربری: <b class="mono" dir="ltr">{{ m.username }}</b>
-    {% if password %} · رمز: <b class="mono" dir="ltr">{{ password }}</b>{% elif m.password_hash %} · رمز: <span class="small">قابل نمایش نیست (یک رمز تازه بسازید)</span>{% endif %}</p>
+    {% if password %} · رمز: <b class="mono" dir="ltr" id="pwv" data-pw="{{ password }}">••••••••</b> <button type="button" class="btn sm alt" id="pwshow" aria-pressed="false">نمایش</button> <button type="button" class="btn sm alt" id="pwcopy">کپی</button>{% elif m.password_hash %} · رمز: <span class="small">قابل نمایش نیست (یک رمز تازه بسازید)</span>{% endif %}</p>
   {% else %}
   <p class="small">این عضو هنوز نام کاربری و رمز ندارد{% if m.tg_user_id %} (با تلگرام وارد سایت می‌شود){% endif %}.</p>
   {% endif %}
@@ -35,6 +36,7 @@
     <label>رمز تازه<input type="text" name="password" dir="ltr" placeholder="خالی = رمز موقت خودکار"></label>
     <div><button class="btn alt">ذخیرهٔ نام کاربری / رمز تازه</button></div>
   </form>
+  <p class="small">⚠ رمز را در گروه یا جای عمومی نفرستید.</p>
   <p class="small">اگر عضو رمزش را فراموش کرده و تلگرامش وصل نیست، اینجا رمز تازه بسازید و به او بگویید. خودش بعداً از «حساب من» می‌تواند رمز را عوض کند.</p>
 </section>
 
@@ -61,4 +63,11 @@
   <td>{{ jdate(l.handed_at) }}</td><td>{{ jdate(l.due_date) }}</td><td>{{ jdate(l.returned_at) }}</td>
   <td>{% if l.fine %}{{ money(l.fine) }} {{ '✔' if l.fine_paid else '✗' }}{% endif %}</td><td>{{ l.feedback }}</td></tr>{% endfor %}
 </table></div>
+{% endblock %}
+{% block scripts %}
+<script>
+(function(){var v=document.getElementById('pwv'),sh=document.getElementById('pwshow'),cp=document.getElementById('pwcopy');if(!v)return;
+sh.addEventListener('click',function(){var on=sh.getAttribute('aria-pressed')!=='true';v.textContent=on?v.dataset.pw:'••••••••';sh.textContent=on?'پنهان':'نمایش';sh.setAttribute('aria-pressed',on);});
+cp.addEventListener('click',function(){try{navigator.clipboard.writeText(v.dataset.pw);cp.textContent='کپی شد'}catch(e){}});})();
+</script>
 {% endblock %}
