@@ -3,8 +3,9 @@ from __future__ import annotations
 
 import hmac
 import io
+import re
 from pathlib import Path
-from urllib.parse import quote
+from urllib.parse import quote, urlencode
 
 from fastapi import FastAPI, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response, StreamingResponse
@@ -46,6 +47,11 @@ templates.env.globals["bot_link"] = bot_link
 
 # ------------------------------------------------------------------ public
 
+def _fold(text: str) -> str:
+    """Compare Persian text without caring about Arabic ي/ك or half-spaces."""
+    return (text or "").replace("ي", "ی").replace("ك", "ک").replace("\u200c", " ").lower()
+
+
 def grouped_catalog() -> list[tuple[str, list[dict]]]:
     books = services.catalog()
     groups: dict[str, list[dict]] = {t: [] for t in config.TOPICS}
@@ -62,6 +68,41 @@ def grouped_catalog() -> list[tuple[str, list[dict]]]:
 
 def _public_routes(app: FastAPI) -> None:
     @app.get("/", response_class=HTMLResponse)
+    async def home_page(request: Request, category: str = "", available: str = "", sort: str = "newest"):
+        member = member_web.current_member(request)
+        groups = dict(grouped_catalog())
+        category = category if category in groups else ""
+        only_free = available == "1"
+        sort = sort if sort in ("newest", "title") else "newest"
+        books = [b for b in services.catalog() if not category or b in groups[category]]
+        if only_free:
+            books = [b for b in books if b["status"]["state"] == "available"]
+        if sort == "title":
+            books.sort(key=lambda b: _fold(b["title"]))
+        else:
+            books.sort(key=lambda b: (b["added_at"] or "", b["code"]), reverse=True)
+
+        def tab_href(cat: str) -> str:
+            parts = ([("category", cat)] if cat else []) + ([("available", "1")] if only_free else []) + \
+                    ([("sort", sort)] if sort != "newest" else [])
+            return "/" + ("?" + urlencode(parts) if parts else "") + "#shelves"
+        tabs = [{"label": "همهٔ موضوع‌ها", "href": tab_href(""), "active": not category}] + [
+            {"label": t, "href": tab_href(t), "active": t == category} for t in groups if t != "متفرقه"]
+        ratings = {}
+        for base, items in club.all_reviews().items():
+            rs = [r["rating"] for r in items if r["rating"]]
+            if rs:
+                ratings[base] = {"avg": round(sum(rs) / len(rs), 1), "n": len(rs)}
+        for b in books:  # the coloured dot already marks the state, so drop the emoji from the label
+            b["status_label"] = re.sub(r"^[^\w\u0600-\u06FF]+", "", b["status_label"])
+        loan = member_web.overview(member["code"], jalali.today())["loan"] if member else None
+        return templates.TemplateResponse(request, "home.html", {
+            "member": member, "loan": loan, "books": books[:6], "tabs": tabs, "category": category,
+            "available": only_free, "sort": sort, "ratings": ratings,
+            "flash": request.session.pop("flash", None),
+        })
+
+    @app.get("/books", response_class=HTMLResponse)
     async def catalog_page(request: Request):
         groups = grouped_catalog()
         return templates.TemplateResponse(request, "catalog.html", {

@@ -30,7 +30,7 @@ def test_init_data_validation():
 
 def test_public_catalog_and_status():
     c = TestClient(create_app())
-    r = c.get("/")
+    r = c.get("/books")
     assert r.status_code == 200 and "NS-001" in r.text and "موجود در قفسه" in r.text
     s = c.get("/api/status").json()
     assert s["NS-001"]["state"] == "available" and "NS-012-2" not in s
@@ -60,7 +60,7 @@ def test_admin_requires_login(monkeypatch):
     assert r.status_code == 200
     assert c.get("/admin/members/M-01").status_code == 200
     c.post("/admin/loans/new", data={"book_code": "NS-001", "member_code": "M-01", "days": "14"})
-    assert "در امانت تا" in c.get("/").text
+    assert "در امانت تا" in c.get("/books").text
     x = c.get("/admin/export.xlsx")
     assert x.status_code == 200 and x.content[:2] == b"PK"
     h = c.get("/admin/catalog.html")
@@ -100,7 +100,7 @@ def test_admin_book_import_and_loan_delete(monkeypatch, tmp_path):
     c.post(f"/admin/loans/{loan_id}/delete")
     with connect() as conn:
         assert conn.execute("SELECT COUNT(*) FROM loans").fetchone()[0] == 0
-    assert "موجود در قفسه" in c.get("/").text
+    assert "موجود در قفسه" in c.get("/books").text
 
 
 def test_admin_delete_member_and_payment(monkeypatch):

@@ -173,7 +173,7 @@ def member_routes(app: FastAPI, templates) -> None:
         request.session["member"] = code
         return _flash(request, "✅ رمز تازه ذخیره شد و وارد حسابتان شدید.")
 
-    @app.get("/logout")
+    @app.api_route("/logout", methods=["GET", "POST"])
     async def logout(request: Request):
         request.session.pop("member", None)
         return RedirectResponse("/", status_code=303)

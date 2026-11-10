@@ -59,7 +59,7 @@
 {% for topic, items in groups %}{% set sec = loop.index0 %}
 <section><h2>{{ topic }}</h2>
 {% for b in items %}
-<article class="book" id="{{ sec }}-{{ b.code }}" data-code="{{ b.code }}" data-state="{{ b.status.state }}"
+<article class="book" id="{{ sec }}-{{ b.code }}" data-anchor="book-{{ b.code }}" data-code="{{ b.code }}" data-state="{{ b.status.state }}"
   data-search="{{ (b.code ~ ' ' ~ b.title ~ ' ' ~ b.author ~ ' ' ~ b.translator) | lower }}">
   <div class="head">
     <div class="cover">{% set c = cover_url(b.code) %}{% if c %}<img src="{{ c }}" alt="جلد {{ b.title }}" loading="lazy">{% else %}<div class="ph">{{ b.title }}</div>{% endif %}</div>
@@ -134,6 +134,15 @@
     });
   }
   $('q').oninput = filter; $('onlyFree').onchange = filter;
+  // arriving from the home page: ?q=… fills the search, #book-NS-012 jumps to that title
+  try {
+    var qs = new URLSearchParams(location.search).get('q');
+    if (qs) { $('q').value = qs; filter(); }
+    if (location.hash.indexOf('#book-') === 0) {
+      var a = document.querySelector('article[data-anchor="' + location.hash.slice(1) + '"]');
+      if (a) { a.scrollIntoView({ block: 'start' }); a.style.outline = '3px solid #daaf2e'; }
+    }
+  } catch (e) {}
 
   // live shelf status for the downloadable copy of this page
   if (STATIC && window.fetch) {

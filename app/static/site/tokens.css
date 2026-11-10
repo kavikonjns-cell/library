@@ -1,0 +1,47 @@
+/* Vazirmatn is still loaded from the jsDelivr CDN (see site_base.html); self-host the woff2 when the font file is available. */
+:root {
+ color-scheme: light;
+ --font-fa:'Vazirmatn',Tahoma,sans-serif;
+ --color-brand:#c42d51; --color-brand-hover:#a32243; --color-on-brand:#fff;
+ --color-mustard:#daaf2e; --color-mustard-text:#755600;
+ --color-sage:#78917b; --color-sage-text:#365b40;
+ --color-bg:#faf6ee; --color-surface:#fff; --color-soft:#f4eddf;
+ --color-discovery:#edf1e3; --color-text:#2a1d20; --color-muted:#665b60;
+ --color-border:#ddd3c7; --color-available:#365b40;
+ --color-loaned:#8a4a08; --color-reserved:#665520;
+ --color-error:#a51f35; --color-focus:#762e95;
+ --space-1:4px; --space-2:8px; --space-3:12px; --space-4:16px;
+ --space-5:20px; --space-6:24px; --space-8:32px; --space-10:40px;
+ --space-12:48px; --space-14:56px; --space-16:64px; --space-20:80px;
+ --text-xs:.75rem; --text-sm:.875rem; --text-base:1rem;
+ --text-lg:1.125rem; --text-xl:1.25rem; --text-2xl:1.5rem;
+ --heading-hero:clamp(1.75rem,3.1vw,2.75rem);
+ --heading-section:clamp(1.5rem,2.4vw,2.125rem);
+ --leading-body:1.85; --leading-heading:1.45;
+ --weight-normal:400; --weight-medium:500; --weight-bold:700;
+ --radius-control:10px; --radius-dialog:20px; --radius-cover:3px;
+ --radius-pill:999px; --touch-target:44px;
+ --shadow-cover:0 5px 12px rgb(42 29 32 / 12%);
+ --shadow-dialog:0 16px 56px rgb(42 29 32 / 18%);
+ --content-max:1200px; --reading-max:680px;
+ --page-gutter:clamp(20px,4vw,48px);
+ --motion-fast:150ms; --motion-normal:220ms;
+}
+:root[data-theme='dark'] {
+ color-scheme:dark;
+ --color-bg:#211c1e; --color-surface:#2b2528; --color-soft:#342c2d;
+ --color-discovery:#29362c; --color-text:#f8f0e7; --color-muted:#c4b8be;
+ --color-border:#594c50; --color-available:#b4d3b7; --color-loaned:#f2c17a;
+ --color-reserved:#e1d1a2; --color-error:#ffb5bd; --color-focus:#e2b9f2;
+ --color-sage-text:#b4d3b7;
+}
+@media(prefers-reduced-motion:reduce){:root{--motion-fast:0ms;--motion-normal:0ms}}
+
+@media(prefers-color-scheme:dark){:root:not([data-theme='light']){
+ color-scheme:dark;
+ --color-bg:#211c1e; --color-surface:#2b2528; --color-soft:#342c2d;
+ --color-discovery:#29362c; --color-text:#f8f0e7; --color-muted:#c4b8be;
+ --color-border:#594c50; --color-available:#b4d3b7; --color-loaned:#f2c17a;
+ --color-reserved:#e1d1a2; --color-error:#ffb5bd; --color-focus:#e2b9f2;
+ --color-sage-text:#b4d3b7;
+}}
