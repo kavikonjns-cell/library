@@ -126,3 +126,4 @@ img{max-width:100%}
 .tag{display:inline-block;background:var(--color-soft);border-radius:var(--radius-pill);padding:0 12px;font-size:var(--text-sm);margin-inline-end:6px}
 .book-dialog:not([open]){display:none}
 .book-dialog [hidden]{display:none!important}
+.site-nav a.button-primary{color:var(--color-on-brand)}
