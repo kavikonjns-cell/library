@@ -148,6 +148,7 @@ def _public_routes(app: FastAPI) -> None:
         valid = jalali.membership_valid_until(jalali.today())
         return templates.TemplateResponse(request, "register.html", {
             "valid_year": jalali.fa(jalali.jalali_year(valid)), "today": jalali.to_jalali(jalali.today()),
+            "member": member_web.current_member(request), "flash": None,
         })
 
     @app.get("/app/catalog")

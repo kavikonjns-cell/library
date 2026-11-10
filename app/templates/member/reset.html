@@ -1,19 +1,28 @@
 {% extends "member/base.html" %}
 {% block title %}رمز تازه · {{ cfg.LIBRARY_NAME }}{% endblock %}
 {% block body %}
-<section class="box">
-  <h2>انتخاب رمز تازه</h2>
+<div class="auth-page">
+<section class="box auth-panel">
+  <h1>انتخاب رمز تازه</h1>
   {% if not valid %}
-    <p>این لینک منقضی شده یا قبلاً استفاده شده است.</p>
-    <p><a class="btn" href="/forgot">درخواست لینک تازه</a></p>
+    <div class="form-status" data-kind="error" role="alert">این لینک منقضی شده یا قبلاً استفاده شده است.</div>
+    <a class="btn wide" href="/forgot">درخواست لینک تازه</a>
   {% else %}
-  <form method="post" action="/reset/{{ token }}" class="stack">
-    {% if needs_username %}<label>نام کاربری (انگلیسی)<input type="text" name="username" dir="ltr" autocapitalize="none" required></label>
+  <form method="post" action="/reset/{{ token }}">
+    {% if needs_username %}<div class="field"><label for="un">نام کاربری (انگلیسی)</label><input type="text" id="un" name="username" dir="ltr" autocapitalize="none" required></div>
     {% else %}<p>نام کاربری: <b class="mono" dir="ltr">{{ username }}</b></p>{% endif %}
-    <label>رمز تازه<input type="password" name="password" dir="ltr" autocomplete="new-password" minlength="6" required></label>
-    <label>تکرار رمز تازه<input type="password" name="password2" dir="ltr" autocomplete="new-password" minlength="6" required></label>
-    <div><button class="btn">ذخیرهٔ رمز</button></div>
+    <div class="field"><label for="np">رمز تازه</label>
+      <div class="pw"><input type="password" id="np" name="password" dir="ltr" autocomplete="new-password" minlength="6" required aria-describedby="np-h"><button type="button" class="pw-toggle" data-for="np" aria-pressed="false">نمایش</button></div>
+      <div class="small" id="np-h">دست‌کم ۶ حرف یا عدد.</div></div>
+    <div class="field"><label for="np2">تکرار رمز تازه</label>
+      <div class="pw"><input type="password" id="np2" name="password2" dir="ltr" autocomplete="new-password" minlength="6" required><button type="button" class="pw-toggle" data-for="np2" aria-pressed="false">نمایش</button></div></div>
+    <button class="btn wide">ذخیرهٔ رمز و ورود</button>
   </form>
   {% endif %}
 </section>
+</div>
 {% endblock %}
+{% block scripts %}<script>
+document.querySelectorAll('.pw-toggle').forEach(function (b) { b.addEventListener('click', function () {
+  var i = document.getElementById(b.dataset.for), s = i.type === 'password'; i.type = s ? 'text' : 'password'; b.textContent = s ? 'پنهان' : 'نمایش'; b.setAttribute('aria-pressed', s); }); });
+</script>{% endblock %}

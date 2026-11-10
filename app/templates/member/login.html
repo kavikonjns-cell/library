@@ -1,32 +1,37 @@
 {% extends "member/base.html" %}
 {% block title %}ورود · {{ cfg.LIBRARY_NAME }}{% endblock %}
 {% block body %}
-<section class="box center">
-  <h2>ورود به حساب کتابخانه</h2>
-  <form method="post" action="/login/password" class="stack" style="text-align:right">
+<div class="auth-page">
+<section class="box auth-panel" aria-labelledby="login-h">
+  <h1 id="login-h">ورود به حساب کتابخانه</h1>
+  <form method="post" action="/login/password">
     <input type="hidden" name="next" value="{{ next or '' }}">
-    <div class="field"><label class="lbl" for="u">نام کاربری</label>
-      <input type="text" id="u" name="username" dir="ltr" autocomplete="username" autocapitalize="none" required>
-      <div class="small">کد عضویت (مثل M-07) یا شمارهٔ تماس هم پذیرفته می‌شود.</div></div>
-    <div class="field"><label class="lbl" for="p">رمز عبور</label>
-      <input type="password" id="p" name="password" dir="ltr" autocomplete="current-password" required></div>
+    <div class="field"><label for="u">نام کاربری</label>
+      <input type="text" id="u" name="username" dir="ltr" autocomplete="username" autocapitalize="none" spellcheck="false" aria-describedby="u-h" required>
+      <div class="small" id="u-h">کد عضویت (مثل M-07) یا شمارهٔ تماس هم پذیرفته می‌شود.</div></div>
+    <div class="field"><label for="p">رمز عبور</label>
+      <div class="pw"><input type="password" id="p" name="password" dir="ltr" autocomplete="current-password" required>
+        <button type="button" id="pw-toggle" aria-controls="p" aria-pressed="false">نمایش</button></div></div>
     <button class="btn wide">ورود</button>
   </form>
-  <p class="small"><a href="/forgot">رمز را فراموش کرده‌ام</a></p>
-  <p class="small">هنوز عضو نیستید؟ <a href="/app/register"><b>فرم عضویت را پر کنید</b></a>.</p>
+  <div class="links-row"><a href="/forgot">رمز را فراموش کرده‌ام</a><a href="/app/register">هنوز عضو نیستید؟ <b>فرم عضویت را پر کنید</b></a></div>
 </section>
 
-<section class="box center">
-  <h2>یا ورود با تلگرام</h2>
+<section class="box auth-panel" aria-labelledby="tg-h">
+  <div class="form-divider" role="presentation">یا ورود با تلگرام</div>
+  <h2 id="tg-h" class="sr-only">ورود با تلگرام</h2>
   <p>اگر در ربات تلگرام عضو شده‌اید، دکمهٔ زیر را بزنید؛ ربات کتابخانه باز می‌شود. در ربات <b>Start</b> را بزنید و به همین صفحه برگردید؛ خودکار وارد می‌شوید.</p>
-  <a class="btn wide alt" href="{{ bot_link('login_' ~ nonce) }}" target="_blank" id="go">ورود با تلگرام</a>
-  <p class="small" id="state"></p>
+  <a class="btn alt wide" href="{{ bot_link('login_' ~ nonce) }}" target="_blank" rel="noopener" id="go">ورود با تلگرام</a>
+  <p class="small" id="state" role="status" aria-live="polite"></p>
   <p class="small">در خود ربات هم دکمهٔ «🌐 ورود به سایت» هست که مستقیم وارد حسابتان می‌کند.</p>
 </section>
+</div>
 {% endblock %}
 {% block scripts %}
 <script>
 (function () {
+  var pt = document.getElementById('pw-toggle'), pi = document.getElementById('p');
+  pt.addEventListener('click', function () { var s = pi.type === 'password'; pi.type = s ? 'text' : 'password'; pt.textContent = s ? 'پنهان' : 'نمایش'; pt.setAttribute('aria-pressed', s); });
   var tg = window.Telegram && window.Telegram.WebApp, state = document.getElementById('state');
   if (tg && tg.initData) {  // opened inside Telegram: sign in right away
     fetch('/api/login/webapp', { method: 'POST', headers: { 'Content-Type': 'application/json' },

@@ -10,10 +10,12 @@
 <link rel="stylesheet" href="/static/site/tokens.css">
 <link rel="stylesheet" href="/static/site/site.css">
 <link rel="stylesheet" href="/static/site/catalogue-dialogs.css">
+<link rel="stylesheet" href="/static/site/member.css">
+{% block head_extra %}{% endblock %}
 <script>try{var t=localStorage.getItem('theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t}catch(e){}</script>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
-<body>
+<body class="{% block body_class %}{% endblock %}">
 <a class="skip" href="#main">رفتن به محتوا</a>
 {% from "_macros.html" import icon %}
 <header class="site-header">
@@ -43,7 +45,7 @@
   </div>
 </header>
 <main id="main">
-{% if flash %}<div class="container"><div class="flash" role="status">{{ flash.msg }}</div></div>{% endif %}
+{% if flash %}<div class="container"><div class="flash {{ 'ok' if flash.ok is not defined or flash.ok else 'bad' }}" role="{{ 'status' if flash.ok is not defined or flash.ok else 'alert' }}">{{ flash.msg }}</div></div>{% endif %}
 {% block main %}{% endblock %}
 </main>
 <footer class="site-footer">
@@ -70,5 +72,6 @@
   var w = window.Telegram && window.Telegram.WebApp; if (w && w.initData) { w.ready(); w.expand(); }
 })();
 </script>
+{% block scripts %}{% endblock %}
 </body>
 </html>
