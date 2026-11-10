@@ -227,6 +227,22 @@ def leaderboard(on: dt.date | None = None, limit: int = 20) -> list[dict]:
     return rows[:limit]
 
 
+def recent_days(code: str, on: dt.date | None = None, n: int = 30) -> list[dict]:
+    """The last ``n`` days (oldest first): minutes read, leave flag and a 0-3 level for the heat grid."""
+    on = on or _today()
+    with connect() as conn:
+        logs = {r["day"]: r for r in conn.execute(
+            "SELECT day, minutes, is_leave FROM reading_logs WHERE member_code = ?", (code,))}
+    out = []
+    for i in range(n - 1, -1, -1):
+        d = on - dt.timedelta(days=i)
+        r = logs.get(d.isoformat())
+        mins = r["minutes"] if r and not r["is_leave"] else 0
+        out.append({"date": d.isoformat(), "minutes": mins, "leave": bool(r and r["is_leave"]),
+                    "level": 0 if not mins else 1 if mins < 20 else 2 if mins < 45 else 3})
+    return out
+
+
 def reader_profile(code: str, on: dt.date | None = None) -> dict | None:
     with connect() as conn:
         m = _member(conn, code)
@@ -240,6 +256,7 @@ def reader_profile(code: str, on: dt.date | None = None) -> dict | None:
         if b["topic1"]:
             topics[b["topic1"]] = topics.get(b["topic1"], 0) + 1
     return {"member": dict(m), "name": display_name(m), "stats": stats(code, on),
+            "days": recent_days(code, on),
             "books": [dict(b) for b in books], "topics": sorted(topics.items(), key=lambda t: -t[1])}
 
 

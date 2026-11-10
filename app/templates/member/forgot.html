@@ -1,18 +1,23 @@
 {% extends "member/base.html" %}
 {% block title %}بازیابی رمز · {{ cfg.LIBRARY_NAME }}{% endblock %}
 {% block body %}
-<section class="box">
-  <h2>رمز را فراموش کرده‌ام</h2>
+<div class="auth-page">
+<section class="box auth-panel">
+  <h1>رمز را فراموش کرده‌ام</h1>
   {% if sent %}
+    <div class="form-status" data-kind="ok" role="status">درخواست شما ثبت شد.</div>
     <p>اگر حسابی با این مشخصات باشد و به تلگرام وصل باشد، ربات کتابخانه یک <b>لینک انتخاب رمز تازه</b> برایتان فرستاده است (تا ۳۰ دقیقه اعتبار دارد).</p>
     <p>اگر حسابتان به تلگرام وصل نیست، به مسئول کتابخانه خبر دادیم؛ او یک رمز تازه برایتان می‌سازد. می‌توانید تماس هم بگیرید: <b class="mono">{{ fa(cfg.LIBRARY_PHONE) }}</b></p>
-    <p class="small"><a href="/login">بازگشت به صفحهٔ ورود</a></p>
+    <div class="links-row"><a href="/login">بازگشت به صفحهٔ ورود</a></div>
   {% else %}
-    <p class="small">نام کاربری، کد عضویت (مثل M-07) یا شمارهٔ تماسی را که در فرم عضویت نوشتید وارد کنید.</p>
-    <form method="post" action="/forgot" class="inline">
-      <input type="text" name="who" dir="ltr" required autocapitalize="none" placeholder="نام کاربری / کد / شماره">
-      <button class="btn sm">بازیابی رمز</button>
+    <form method="post" action="/forgot">
+      <div class="field"><label for="who">نام کاربری، کد عضویت یا شمارهٔ تماس</label>
+        <input type="text" id="who" name="who" dir="ltr" required autocapitalize="none" spellcheck="false" aria-describedby="who-h">
+        <div class="small" id="who-h">همان که در فرم عضویت نوشتید؛ مثل M-07 یا ۰۹۱۲…</div></div>
+      <button class="btn wide">ادامه</button>
     </form>
+    <div class="links-row"><a href="/login">بازگشت به صفحهٔ ورود</a></div>
   {% endif %}
 </section>
+</div>
 {% endblock %}

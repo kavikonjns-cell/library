@@ -2,20 +2,12 @@
 {% block title %}حساب من · {{ cfg.LIBRARY_NAME }}{% endblock %}
 {% block body %}
 {% set o_loan = o.loan %}
-<section class="box">
-  <h2>👤 {{ m.name }}</h2>
-  <dl class="kv">
-    <dt>کد عضویت</dt><dd><b>{{ m.code }}</b></dd>
-    <dt>نقش</dt><dd>{{ m.role }}</dd>
-    <dt>حق عضویت</dt><dd>{{ money(m.fee) }} ·
-      {% if m.payment_status == 'paid' %}پرداخت شد ✅{% elif m.payment_status == 'rejected' %}فیش رد شد ⚠️{% else %}منتظر فیش/تأیید ⏳{% endif %}</dd>
-    <dt>عضویت</dt><dd>{% if m.status == 'revoked' %}باطل‌شده ⛔{% elif valid %}معتبر ✅{% else %}منقضی ⚠️{% endif %} · تا {{ expired }}</dd>
-  </dl>
-  <p class="small"><a href="/logout">خروج از حساب</a></p>
-</section>
-
-<section class="box">
-  <h2>📗 امانت</h2>
+<h1 class="page-title">سلام، {{ m.name.split()[0] if m.name else 'عضو عزیز' }}</h1>
+<p class="page-sub">همهٔ کارهای کتابخانه از همین‌جا انجام می‌شود.</p>
+<div class="account-grid">
+<div class="account-main">
+<section class="box loan-box o-2" aria-labelledby="h-loan">
+  <h2 id="h-loan">📗 امانت</h2>
   {% if o_loan and o_loan.status == 'active' %}
     <p>در دست: <b>«{{ o_loan.title }}»</b> ({{ o_loan.book_code }})</p>
     <p>مهلت بازگشت: <b>{{ jdate(o_loan.due_date) }}</b>
@@ -29,7 +21,7 @@
   {% elif o_loan %}
     <p>📌 رزرو: <b>«{{ o_loan.title }}»</b> · لطفاً تا <b>{{ jdate(o_loan.reserve_expires) }}</b> از {{ cfg.PICKUP_PLACE }} تحویل بگیرید.</p>
   {% else %}
-    <p>کتابی در دست ندارید. <a href="/">از فهرست کتاب‌ها</a> انتخاب کنید.</p>
+    <p>کتابی در دست ندارید. <a href="/books">از فهرست کتاب‌ها</a> انتخاب کنید.</p>
   {% endif %}
   {% for w in o.waits %}
     <div class="list-row inline">🕒 در صف انتظار «{{ w.title }}»
@@ -37,21 +29,65 @@
   {% endfor %}
 </section>
 
+{% if o.recent %}
+<section class="box o-5" aria-labelledby="h-recent">
+  <h2 id="h-recent">📚 کتاب‌های اخیر</h2>
+  {% for r in o.recent %}
+  <div class="list-row">
+    <b>«{{ r.title }}»</b> <span class="small">· برگشت {{ jdate(r.returned_at) }}{% if r.finished %} · تمام شد ✅{% endif %}</span>
+    {% if m.club and not r.finished and r.status == 'returned' %}
+      <form method="post" action="/me/finished" class="inline" style="margin-top:6px">
+        <input type="hidden" name="loan_id" value="{{ r.id }}">
+        <select name="rating" style="width:auto"><option value="0">امتیاز (اختیاری)</option>{% for i in range(5, 0, -1) %}<option value="{{ i }}">{{ '★' * i }}</option>{% endfor %}</select>
+        <button class="btn sm alt">تمامش کردم</button>
+      </form>
+    {% endif %}
+    {% if r.feedback %}<div class="review">{{ r.feedback }}</div>
+    {% elif r.status == 'returned' %}
+      <form method="post" action="/me/feedback" class="inline" style="margin-top:6px">
+        <input type="hidden" name="loan_id" value="{{ r.id }}">
+        <input type="text" name="text" placeholder="نظرتان دربارهٔ این کتاب…"><button class="btn sm">ثبت نظر</button>
+      </form>
+    {% endif %}
+  </div>
+  {% endfor %}
+</section>
+{% endif %}
+
+<section class="box o-8" aria-labelledby="h-msg">
+  <h2 id="h-msg">✉️ پیام‌ها</h2>
+  {% for msg in inbox %}
+    <div class="msg {{ 'new' if not msg.seen }}"><div class="when">{{ jdate(msg.created_at) }}</div>{{ msg.text }}</div>
+  {% else %}<p class="small">هنوز پیامی ندارید. اطلاعیه‌ها هم اینجا و هم در ربات تلگرام می‌آیند.</p>{% endfor %}
+</section>
+</div>
+<div class="account-sidebar">
+<section class="box o-1" aria-labelledby="h-me">
+  <h2 id="h-me">👤 {{ m.name }}</h2>
+  <p>{% if m.status == 'revoked' %}<span class="state-pill warn">⛔ عضویت باطل شده</span>{% elif valid and m.payment_status == 'paid' %}<span class="state-pill">✅ عضویت معتبر</span>{% elif not valid %}<span class="state-pill warn">⚠️ عضویت منقضی شده</span>{% else %}<span class="state-pill warn">⏳ منتظر تأیید فیش</span>{% endif %}</p>
+  <dl class="kv">
+    <dt>کد عضویت</dt><dd><b>{{ m.code }}</b></dd>
+    <dt>نقش</dt><dd>{{ m.role }}</dd>
+    <dt>حق عضویت</dt><dd>{{ money(m.fee) }} ·
+      {% if m.payment_status == 'paid' %}پرداخت شد{% elif m.payment_status == 'rejected' %}فیش رد شد ⚠️{% else %}منتظر فیش/تأیید{% endif %}</dd>
+    <dt>اعتبار</dt><dd>تا {{ expired }}</dd>
+  </dl>
+</section>
 {% if o.unpaid or m.payment_status != 'paid' %}
-<section class="box">
-  <h2>🧾 فرستادن فیش</h2>
+<section class="box o-3" aria-labelledby="h-rcpt">
+  <h2 id="h-rcpt">🧾 فرستادن فیش</h2>
   {% if o.unpaid %}<p>جریمهٔ پرداخت‌نشده: <b>{{ money(o.unpaid) }}</b></p>
   {% else %}<p>حق عضویت: <b>{{ money(m.fee) }}</b></p>{% endif %}
   <p class="small">واریز به کارت {{ fa(cfg.CARD_NUMBER[0:4] ~ ' ' ~ cfg.CARD_NUMBER[4:8] ~ ' ' ~ cfg.CARD_NUMBER[8:12] ~ ' ' ~ cfg.CARD_NUMBER[12:16]) }} به نام {{ cfg.CARD_OWNER }}</p>
   <form method="post" action="/me/receipt" enctype="multipart/form-data" class="inline">
-    <input type="file" name="file" accept="image/*" required>
+    <input type="file" name="file" accept="image/*" required aria-label="عکس فیش واریز">
     <button class="btn sm">فرستادن فیش</button>
   </form>
 </section>
 {% endif %}
 
-<section class="box" id="club">
-  <h2>📖 {{ cfg.CLUB_NAME }}</h2>
+<section class="box o-4" id="club" aria-labelledby="h-club">
+  <h2 id="h-club">📖 {{ cfg.CLUB_NAME }}</h2>
   {% if not m.club %}
     <p>اگر دوست دارید کتاب‌خواندن عادت هر روزتان شود، به کلوپ بپیوندید: زمان مطالعهٔ کتاب امانتی را هر روز ثبت می‌کنید، روزهای پیاپی‌تان «زنجیره» می‌سازد، نشان می‌گیرید و کتاب‌های تمام‌شده‌تان در صفحهٔ شخصی‌تان جمع می‌شود.</p>
     <p class="small">عضویت در کلوپ اختیاری و رایگان است؛ امانت گرفتن بدون آن هم مثل همیشه ممکن است.</p>
@@ -87,43 +123,18 @@
   {% endif %}
 </section>
 
-{% if o.recent %}
-<section class="box">
-  <h2>📚 کتاب‌های اخیر</h2>
-  {% for r in o.recent %}
-  <div class="list-row">
-    <b>«{{ r.title }}»</b> <span class="small">· برگشت {{ jdate(r.returned_at) }}{% if r.finished %} · تمام شد ✅{% endif %}</span>
-    {% if m.club and not r.finished and r.status == 'returned' %}
-      <form method="post" action="/me/finished" class="inline" style="margin-top:6px">
-        <input type="hidden" name="loan_id" value="{{ r.id }}">
-        <select name="rating" style="width:auto"><option value="0">امتیاز (اختیاری)</option>{% for i in range(5, 0, -1) %}<option value="{{ i }}">{{ '★' * i }}</option>{% endfor %}</select>
-        <button class="btn sm alt">تمامش کردم</button>
-      </form>
-    {% endif %}
-    {% if r.feedback %}<div class="review">{{ r.feedback }}</div>
-    {% elif r.status == 'returned' %}
-      <form method="post" action="/me/feedback" class="inline" style="margin-top:6px">
-        <input type="hidden" name="loan_id" value="{{ r.id }}">
-        <input type="text" name="text" placeholder="نظرتان دربارهٔ این کتاب…"><button class="btn sm">ثبت نظر</button>
-      </form>
-    {% endif %}
-  </div>
-  {% endfor %}
-</section>
-{% endif %}
-
-<section class="box">
-  <h2>💡 پیشنهاد کتاب</h2>
+<section class="box o-6" aria-labelledby="h-sug">
+  <h2 id="h-sug">💡 پیشنهاد کتاب</h2>
   <p class="small">کتاب یا موضوعی که دوست دارید در کتابخانه باشد:</p>
-  <form method="post" action="/me/suggest" class="inline"><input type="text" name="title" placeholder="نام کتاب یا موضوع" required><button class="btn sm">ثبت</button></form>
+  <form method="post" action="/me/suggest" class="inline"><input type="text" name="title" placeholder="نام کتاب یا موضوع" required aria-label="نام کتاب یا موضوع"><button class="btn sm">ثبت</button></form>
 </section>
 
-<section class="box" id="account">
-  <h2>🔑 ورود به سایت با نام کاربری و رمز</h2>
+<section class="box o-7" id="account" aria-labelledby="h-acc">
+  <h2 id="h-acc">🔑 ورود به سایت با نام کاربری و رمز</h2>
   {% if m.username %}<p>نام کاربری شما: <b class="mono" dir="ltr">{{ m.username }}</b></p>
   {% else %}<p class="small">برای ورود بدون تلگرام، یک نام کاربری و رمز انتخاب کنید.</p>{% endif %}
-  <details {{ '' if m.username else 'open' }}><summary>{{ 'تغییر نام کاربری یا رمز' if m.username else 'انتخاب نام کاربری و رمز' }}</summary>
-  <form method="post" action="/me/account" class="stack" style="margin-top:10px">
+  <details class="fold" {{ '' if m.username else 'open' }}><summary>{{ 'تغییر نام کاربری یا رمز' if m.username else 'انتخاب نام کاربری و رمز' }}</summary>
+  <form method="post" action="/me/account" class="stack">
     <label>نام کاربری<input type="text" name="username" value="{{ m.username }}" dir="ltr" autocomplete="username" required></label>
     {% if m.password_hash %}<label>رمز فعلی<input type="password" name="current" dir="ltr" autocomplete="current-password" required></label>{% endif %}
     <label>رمز تازه<input type="password" name="password" dir="ltr" autocomplete="new-password" minlength="6" required></label>
@@ -133,10 +144,6 @@
   {% if not m.tg_user_id %}<p class="small">برای این‌که یادآوری‌ها در تلگرام هم برسد، در <a href="{{ bot_link() }}">ربات</a> «🔗 قبلاً عضو شده‌ام» را بزنید و کد عضویت ({{ m.code }}) و شمارهٔ تماستان را بفرستید.</p>{% endif %}
 </section>
 
-<section class="box">
-  <h2>✉️ پیام‌ها</h2>
-  {% for msg in inbox %}
-    <div class="msg {{ 'new' if not msg.seen }}"><div class="when">{{ jdate(msg.created_at) }}</div>{{ msg.text }}</div>
-  {% else %}<p class="small">هنوز پیامی ندارید. اطلاعیه‌ها هم اینجا و هم در ربات تلگرام می‌آیند.</p>{% endfor %}
-</section>
+</div>
+</div>
 {% endblock %}

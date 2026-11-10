@@ -1,28 +1,17 @@
-<!doctype html>
-<html lang="fa" dir="rtl">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>فرم عضویت کتابخانه کاوی کنج</title>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/vazirmatn@33.0.3/Vazirmatn-font-face.css">
-<link rel="stylesheet" href="/static/style.css">
-<script src="https://telegram.org/js/telegram-web-app.js"></script>
-<style>.wrap { max-width: 540px; } .intro { font-size: 14.5px; line-height: 2; color: var(--muted); margin: 10px 0 0; text-align: justify; }</style>
-</head>
-<body>
-<div class="wrap">
-<header>
-  <img class="logo" src="/static/logo.png" alt="کاوی کنج">
-  <h1>فرم عضویت کتابخانه کاوی کنج</h1>
-  <p class="sub">{{ cfg.LIBRARY_SUB }}</p>
-  <p class="intro">کتابخانه کودک و طبیعت کاوی کنج تلاشی است برای گردآوری و در دسترس قرار دادن کتاب‌های مرتبط با حوزه کودک و طبیعت برای والدین، مربیان، تسهیلگران، پژوهشگران و همه کسانی که دغدغه کودکی و طبیعت را دارند. کتابخانه با هدف درآمدزایی راه‌اندازی نشده است و حق عضویت اعضا صرف توسعه کتابخانه و افزایش تعداد و تنوع کتاب‌ها می‌شود. در حال حاضر، خدمات کتابخانه صرفاً به ساکنان شهر مشهد ارائه می‌شود.</p>
-</header>
+{% extends "member/base.html" %}
+{% block title %}فرم عضویت کتابخانه کاوی کنج{% endblock %}
+{% block body %}
+<div class="register-page">
+<h1 class="page-title">فرم عضویت کتابخانه کاوی کنج</h1>
+<p class="page-sub">{{ cfg.LIBRARY_SUB }}</p>
+<p class="intro">کتابخانه کودک و طبیعت کاوی کنج تلاشی است برای گردآوری و در دسترس قرار دادن کتاب‌های مرتبط با حوزه کودک و طبیعت برای والدین، مربیان، تسهیلگران، پژوهشگران و همه کسانی که دغدغه کودکی و طبیعت را دارند. کتابخانه با هدف درآمدزایی راه‌اندازی نشده است و حق عضویت اعضا صرف توسعه کتابخانه و افزایش تعداد و تنوع کتاب‌ها می‌شود. در حال حاضر، خدمات کتابخانه صرفاً به ساکنان شهر مشهد ارائه می‌شود.</p>
 
-<div class="notice hidden" id="outside">فرم را پر کنید و برای خودتان نام کاربری و رمز بگذارید؛ ثبت‌نام همین‌جا کامل می‌شود و کد عضویت را فوراً می‌گیرید. قبلاً عضو شده‌اید؟ <a href="/login">وارد شوید</a>.</div>
+<ol class="steps" aria-label="بخش‌های فرم"><li>مشخصات</li><li class="web-only">حساب سایت</li><li>حق عضویت</li><li>قوانین</li></ol>
+<div class="notice hidden" id="outside" role="note">فرم را پر کنید و برای خودتان نام کاربری و رمز بگذارید؛ ثبت‌نام همین‌جا کامل می‌شود و کد عضویت را فوراً می‌گیرید. قبلاً عضو شده‌اید؟ <a href="/login">وارد شوید</a>.</div>
 
 <form id="f" novalidate onsubmit="return false;">
-<section class="box">
-  <h2>مشخصات</h2>
+<section class="box" aria-labelledby="g-1">
+  <h2 id="g-1">مشخصات</h2>
   <div class="field" id="f-name">
     <label class="lbl" for="name">نام و نام خانوادگی <span class="req">*</span></label>
     <input type="text" id="name" autocomplete="name">
@@ -59,29 +48,29 @@
   </div>
 </section>
 
-<section class="box hidden" id="acct">
-  <h2>نام کاربری و رمز سایت</h2>
+<section class="box hidden" id="acct" aria-labelledby="g-2">
+  <h2 id="g-2">نام کاربری و رمز سایت</h2>
   <div class="field" id="f-user">
     <label class="lbl" for="user">نام کاربری <span class="req">*</span></label>
-    <input type="text" id="user" dir="ltr" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="مثلاً sara.ahmadi">
+    <input type="text" id="user" dir="ltr" aria-describedby="user-h" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="مثلاً sara.ahmadi">
     <div class="small">۳ تا ۳۲ حرف انگلیسی؛ با حرف شروع شود؛ فقط حرف، عدد، نقطه یا _.</div>
     <div class="err">نام کاربری درست نیست.</div>
   </div>
   <div class="field" id="f-pass">
     <label class="lbl" for="pass">رمز عبور <span class="req">*</span></label>
-    <input type="password" id="pass" dir="ltr" autocomplete="new-password">
+    <div class="pw"><input type="password" id="pass" dir="ltr" autocomplete="new-password"><button type="button" class="pw-toggle" data-for="pass" aria-pressed="false">نمایش</button></div>
     <div class="err">رمز باید دست‌کم ۶ حرف یا عدد باشد.</div>
   </div>
   <div class="field" id="f-pass2">
     <label class="lbl" for="pass2">تکرار رمز عبور <span class="req">*</span></label>
-    <input type="password" id="pass2" dir="ltr" autocomplete="new-password">
+    <div class="pw"><input type="password" id="pass2" dir="ltr" autocomplete="new-password"><button type="button" class="pw-toggle" data-for="pass2" aria-pressed="false">نمایش</button></div>
     <div class="err">دو رمز با هم یکی نیستند.</div>
   </div>
   <div class="small">اگر رمز را فراموش کنید، از صفحهٔ ورود «رمز را فراموش کرده‌ام» را بزنید.</div>
 </section>
 
 <section class="box">
-  <h2>موضوع‌های مورد علاقه <span class="small">(اختیاری)</span></h2>
+  <h2 id="g-3">موضوع‌های مورد علاقه <span class="small">(اختیاری)</span></h2>
   <div class="opts">{% for t in cfg.MEMBER_TOPICS %}<label class="opt"><input type="checkbox" name="topic" value="{{ t }}"><span>{{ t }}</span></label>{% endfor %}</div>
   <div class="field" style="margin-top:14px">
     <label class="lbl" for="wish">کتاب یا موضوعی که دوست دارید در کتابخانه باشد</label>
@@ -90,7 +79,7 @@
 </section>
 
 <section class="box">
-  <h2>حق عضویت</h2>
+  <h2 id="g-4">حق عضویت</h2>
   <div class="fee"><span>حق عضویت سالیانۀ شما</span><b id="feeamt">نقش را انتخاب کنید</b></div>
   <div class="small" style="margin-top:8px">اگر امروز ثبت‌نام کنید، عضویت شما تا پایان اسفند {{ valid_year }} اعتبار دارد.</div>
   <div class="card"><div class="small">واریز به کارت کتابخانه:</div><div class="cardno">{{ fa(cfg.CARD_NUMBER[0:4] ~ ' ' ~ cfg.CARD_NUMBER[4:8] ~ ' ' ~ cfg.CARD_NUMBER[8:12] ~ ' ' ~ cfg.CARD_NUMBER[12:16]) }}</div><div class="small">به نام {{ cfg.CARD_OWNER }}</div>
@@ -98,8 +87,9 @@
   <div class="small" style="margin-top:6px">بعد از ثبت فرم، عکس فیش واریز را در «حساب من» در سایت یا در ربات بفرستید. حق عضویت بازگردانده نمی‌شود.</div>
 </section>
 
-<section class="box">
-  <h2>قوانین کتابخانه</h2>
+<section class="box" aria-labelledby="g-5">
+  <h2 id="g-5">قوانین کتابخانه</h2>
+  <details class="terms"><summary>خواندن قوانین (هفت بند اصلی و جزئیات)</summary>
   <ol class="rulelist">
     <li>هر عضو در یک زمان فقط <b>یک کتاب</b> امانت می‌گیرد.</li>
     <li>مدت امانت <b>دو هفته</b> است. با تمدید، کل مدت از روز تحویل حداکثر <b>{{ fa(cfg.LOAN_MAX_TOTAL_DAYS) }} روز</b> می‌شود.</li>
@@ -113,12 +103,13 @@
     <li>عضویت از روز ثبت‌نام تا <b>پایان اسفند</b> همان سال اعتبار دارد. اگر ثبت‌نام از اول دی به بعد باشد، عضویت تا پایان اسفند سال بعد معتبر است.</li>
     <li>حق عضویت در هیچ شرایطی بازگردانده نمی‌شود.</li>
     <li>فهرست کتاب‌ها و وضعیت آن‌ها در ربات تلگرام و سایت کتابخانه منتشر می‌شود.</li>
-  </ol>
+  </ol></details>
   <div class="field" id="f-agree" style="margin-top:12px">
     <label class="opt"><input type="checkbox" id="agree"><span>قوانین کتابخانه و حق عضویت سالیانه را خواندم و می‌پذیرم. <span class="req">*</span></span></label>
     <div class="err">برای عضویت، پذیرش قوانین لازم است.</div>
   </div>
 </section>
+<div class="form-status hidden" id="status" role="alert" tabindex="-1"></div>
 <button type="button" class="btn wide" id="make">ثبت عضویت</button>
 </form>
 
@@ -130,9 +121,9 @@
   <a class="btn wide hidden" id="gome" href="/me">رفتن به «حساب من» و فرستادن فیش</a>
 </section>
 
-<footer><div class="slogan">{{ cfg.SLOGAN }}</div><div>{{ cfg.LIBRARY_NAME }} · تأسیس ۱۴۰۵</div></footer>
 </div>
-
+{% endblock %}
+{% block scripts %}
 <script>
 (function () {
   var $ = function (id) { return document.getElementById(id); };
@@ -142,11 +133,12 @@
   // Opened from the bot's bottom-menu button: Telegram gives no initData there, but sendData() works
   var keyboardApp = !inApp && !!(tg && tg.sendData && tg.platform && tg.platform !== 'unknown');
   var web = !inApp && !keyboardApp;  // ordinary browser: full signup with a username and password
-  if (!web) { tg.ready(); tg.expand(); } else { $('outside').classList.remove('hidden'); $('acct').classList.remove('hidden'); }
+  if (!web) { document.body.classList.add('in-app'); tg.ready(); tg.expand(); } else { $('outside').classList.remove('hidden'); $('acct').classList.remove('hidden'); }
   var FA = '۰۱۲۳۴۵۶۷۸۹', AR = '٠١٢٣٤٥٦٧٨٩';
   var en = function (s) { return String(s).replace(/[۰-۹٠-٩]/g, function (c) { var k = FA.indexOf(c); return k >= 0 ? k : AR.indexOf(c); }); };
   var fa = function (s) { return String(s).replace(/[0-9]/g, function (d) { return FA.charAt(+d); }); };
   var role = function () { var r = qa('input[name=role]').filter(function (x) { return x.checked; })[0]; return r || null; };
+  var say = function (t) { var e = $('status'); e.dataset.kind = 'error'; e.textContent = t; e.classList.remove('hidden'); e.focus(); };
   var mark = function (id, bad) { $(id).classList.toggle('bad', bad); return !bad; };
 
   qa('input[name=role]').forEach(function (r) {
@@ -163,7 +155,9 @@
     try { navigator.clipboard.writeText({{ cfg.CARD_NUMBER | tojson }}); this.textContent = 'شمارۀ کارت کپی شد'; } catch (e) {}
   };
 
+  qa('.pw-toggle').forEach(function (b) { b.onclick = function () { var i = $(b.dataset.for), sh = i.type === 'password'; i.type = sh ? 'text' : 'password'; b.textContent = sh ? 'پنهان' : 'نمایش'; b.setAttribute('aria-pressed', sh); }; });
   function collect() {
+    $('status').classList.add('hidden');
     var r = role(), phone = en($('phone').value).replace(/[\s\-]/g, '');
     var ok = mark('f-name', !$('name').value.trim());
     ok = mark('f-role', !r) && ok;
@@ -175,7 +169,7 @@
       ok = mark('f-pass', $('pass').value.length < 6) && ok;
       ok = mark('f-pass2', $('pass').value !== $('pass2').value) && ok;
     }
-    if (!ok) { var b = document.querySelector('.bad'); if (b) b.scrollIntoView({ block: 'center' }); return null; }
+    if (!ok) { var b = document.querySelector('.bad'); if (b) { b.scrollIntoView({ block: 'center' }); var inp = b.querySelector('input,textarea'); if (inp) inp.focus(); } return null; }
     return {
       name: $('name').value.trim(), role: r.value, role_other: $('other').value.trim(),
       child_name: $('child').value.trim(), child_group: $('group').value.trim(), phone: phone,
@@ -200,13 +194,13 @@
         .then(function (r) { return r.json(); })
         .then(function (r) {
           btn.disabled = false; btn.textContent = 'ثبت عضویت';
-          if (!r.ok) { alert(r.message || 'خطا در ثبت'); return; }
+          if (!r.ok) { say(r.message || 'خطا در ثبت'); return; }
           $('code').textContent = r.code; $('okmsg').textContent = r.message;
           $('closeApp').classList.add('hidden'); $('gome').classList.remove('hidden');
-          $('f').classList.add('hidden'); $('outside').classList.add('hidden'); $('ok').classList.remove('hidden');
+          $('f').classList.add('hidden'); document.querySelector('.register-page').classList.add('is-done'); $('outside').classList.add('hidden'); $('ok').classList.remove('hidden');
           window.scrollTo(0, 0);
         })
-        .catch(function () { btn.disabled = false; btn.textContent = 'ثبت عضویت'; alert('ارتباط برقرار نشد. دوباره امتحان کنید.'); });
+        .catch(function () { btn.disabled = false; btn.textContent = 'ثبت عضویت'; say('ارتباط برقرار نشد. دوباره امتحان کنید.'); });
       return;
     }
     fetch('/api/register', { method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -214,15 +208,14 @@
       .then(function (r) { return r.json(); })
       .then(function (r) {
         btn.disabled = false; btn.textContent = 'ثبت عضویت';
-        if (!r.ok && !r.code) { alert(r.message || r.detail || 'خطا در ثبت'); return; }
+        if (!r.ok && !r.code) { say(r.message || r.detail || 'خطا در ثبت'); return; }
         $('code').textContent = r.code; $('okmsg').textContent = r.message;
-        $('f').classList.add('hidden'); $('ok').classList.remove('hidden'); window.scrollTo(0, 0);
+        $('f').classList.add('hidden'); document.querySelector('.register-page').classList.add('is-done'); $('ok').classList.remove('hidden'); window.scrollTo(0, 0);
         if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
       })
-      .catch(function () { btn.disabled = false; btn.textContent = 'ثبت عضویت'; alert('ارتباط برقرار نشد. دوباره امتحان کنید.'); });
+      .catch(function () { btn.disabled = false; btn.textContent = 'ثبت عضویت'; say('ارتباط برقرار نشد. دوباره امتحان کنید.'); });
   };
   $('closeApp').onclick = function () { if (inApp) tg.close(); };
 })();
 </script>
-</body>
-</html>
+{% endblock %}
