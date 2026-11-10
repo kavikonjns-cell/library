@@ -3,8 +3,9 @@ from __future__ import annotations
 
 import hmac
 import io
+import re
 from pathlib import Path
-from urllib.parse import quote
+from urllib.parse import quote, urlencode
 
 from fastapi import FastAPI, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response, StreamingResponse
@@ -12,7 +13,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 
-from . import accounts, club, config, covers, exporter, importer, jalali, member_web, notify, services
+from . import accounts, catalogue, club, config, covers, exporter, importer, jalali, member_web, notify, recommend, services
 from .db import connect, upsert_books
 from .telegram_auth import validate_init_data
 
@@ -62,13 +63,85 @@ def grouped_catalog() -> list[tuple[str, list[dict]]]:
 
 def _public_routes(app: FastAPI) -> None:
     @app.get("/", response_class=HTMLResponse)
-    async def catalog_page(request: Request):
-        groups = grouped_catalog()
-        return templates.TemplateResponse(request, "catalog.html", {
-            "member": member_web.current_member(request), "reviews": club.all_reviews(),
-            "groups": groups, "today": jalali.to_jalali(jalali.today()),
-            "day_choices": config.LOAN_DAY_CHOICES, "default_days": min(config.LOAN_DEFAULT_DAYS, config.LOAN_MAX_INITIAL_DAYS),
+    async def home_page(request: Request, category: str = "", available: str = "", sort: str = "newest"):
+        member = member_web.current_member(request)
+        groups = dict(grouped_catalog())
+        category = category if category in groups else ""
+        only_free = available == "1"
+        sort = sort if sort in ("newest", "title") else "newest"
+        books = [b for b in services.catalog() if not category or b in groups[category]]
+        if only_free:
+            books = [b for b in books if b["status"]["state"] == "available"]
+        if sort == "title":
+            books.sort(key=lambda b: catalogue.fold(b["title"]))
+        else:
+            books.sort(key=lambda b: (b["added_at"] or "", b["code"]), reverse=True)
+
+        def tab_href(cat: str) -> str:
+            parts = ([("category", cat)] if cat else []) + ([("available", "1")] if only_free else []) + \
+                    ([("sort", sort)] if sort != "newest" else [])
+            return "/" + ("?" + urlencode(parts) if parts else "") + "#shelves"
+        tabs = [{"label": "همهٔ موضوع‌ها", "href": tab_href(""), "active": not category}] + [
+            {"label": t, "href": tab_href(t), "active": t == category} for t in groups if t != "متفرقه"]
+        ratings = catalogue.ratings()
+        for b in books:  # the coloured dot already marks the state, so drop the emoji from the label
+            b["status_label"] = re.sub(r"^[^\w\u0600-\u06FF]+", "", b["status_label"])
+        loan = member_web.overview(member["code"], jalali.today())["loan"] if member else None
+        picks = recommend.suggest(member["code"]) if member else {"basis": "none", "items": []}
+        for it in picks["items"]:
+            it["book"]["status_label"] = re.sub(r"^[^\w\u0600-\u06FF]+", "", it["book"]["status_label"])
+        return templates.TemplateResponse(request, "home.html", {
+            "member": member, "loan": loan, "picks": picks, "books": books[:6], "tabs": tabs, "category": category,
+            "available": only_free, "sort": sort, "ratings": ratings,
+            "flash": request.session.pop("flash", None),
         })
+
+    @app.get("/books", response_class=HTMLResponse)
+    async def books_page(request: Request, q: str = "", category: str = "", available: str = "",
+                         sort: str = "newest", page: int = 1):
+        member = member_web.current_member(request)
+        all_books = services.catalog()
+        category = category if category in catalogue.SHELF_TOPICS else ""
+        only_free = available == "1"
+        sort = sort if sort in catalogue.SORTS else "newest"
+        rate = catalogue.ratings()
+        found = catalogue.search(all_books, q, category, only_free, sort, rate)
+        pages = max(1, -(-len(found) // catalogue.PAGE_SIZE))
+        page = min(max(page, 1), pages)
+        shown = found[(page - 1) * catalogue.PAGE_SIZE: page * catalogue.PAGE_SIZE]
+        for b in shown:
+            b["status_label"] = catalogue.clean_label(b["status_label"])
+        counts = catalogue.topic_counts(all_books)
+
+        def href(**over) -> str:
+            params = {"q": q, "category": category, "available": "1" if only_free else "",
+                      "sort": "" if sort == "newest" else sort, "page": ""}
+            params.update(over)
+            qs = urlencode([(k, v) for k, v in params.items() if v not in ("", None)])
+            return "/books" + ("?" + qs if qs else "")
+        tabs = [{"label": "همهٔ موضوع‌ها", "count": len(all_books), "href": href(category=""), "active": not category}] + [
+            {"label": t, "count": counts[t], "href": href(category=t), "active": t == category}
+            for t in catalogue.SHELF_TOPICS]
+        filtered = bool(q.strip() or category or only_free)
+        return templates.TemplateResponse(request, "books.html", {
+            "member": member, "groups": catalogue.group(shown), "ratings": rate, "tabs": tabs, "q": q,
+            "category": category, "available": only_free, "sort": sort, "total": len(found), "filtered": filtered,
+            "page": page, "pages": pages, "prev_href": href(page=page - 1 if page > 2 else "") if page > 1 else "",
+            "next_href": href(page=page + 1) if page < pages else "", "clear_href": "/books",
+            "page_hrefs": [(n, href(page=n if n > 1 else ""), n == page) for n in range(1, pages + 1)],
+            "now": jalali.to_jalali_long(jalali.today()), "flash": request.session.pop("flash", None),
+        })
+
+    @app.get("/books/{code}", response_class=HTMLResponse)
+    async def book_page(request: Request, code: str, fragment: str = ""):
+        member = member_web.current_member(request)
+        ctx = catalogue.detail(member, code)
+        if ctx is None:
+            raise HTTPException(404, "کتابی با این کد پیدا نشد.")
+        ctx.update(member=member, flash=request.session.pop("flash", None))
+        if fragment:
+            return templates.TemplateResponse(request, "_book_detail.html", ctx)
+        return templates.TemplateResponse(request, "book_page.html", ctx)
 
     @app.get("/app/register", response_class=HTMLResponse)
     async def register_page(request: Request):

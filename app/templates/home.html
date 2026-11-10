@@ -1,0 +1,106 @@
+{% extends "site_base.html" %}
+{% from "_macros.html" import icon, cover, tile %}
+{% block title %}{{ cfg.LIBRARY_NAME }}{% endblock %}
+{% block main %}
+
+<section class="container hero" aria-labelledby="heroTitle">
+  <div>
+    <h1 id="heroTitle">هر کتاب، آغاز یک کشف تازه</h1>
+    <p class="lead">کتابخانه کودک و طبیعت کاوی کنج</p>
+    <p class="meta">برای والدین، مربیان و تسهیلگران · مشهد</p>
+  </div>
+  <img src="/static/site/hero-open-book.webp" alt="" width="768" height="512" fetchpriority="high">
+</section>
+
+{% if member %}
+<section class="container loan-strip" aria-label="امانت من">
+  {% if loan %}
+  <div class="loan-book">
+    <div style="width:60px">{{ cover({'code': loan.base_code, 'title': loan.title}, 'thumb') }}</div>
+    <div><h2>{{ loan.title }}</h2>
+      <p>{{ 'رزرو شده؛ تحویل گرفتن در ' ~ cfg.PICKUP_PLACE if loan.status == 'reserved' else 'امانت فعال' }}</p>
+      <p><a href="/me">حساب من</a></p></div>
+  </div>
+  <div class="loan-due">
+    <div>{{ 'مهلت تحویل گرفتن تا' if loan.status == 'reserved' else 'بازگشت تا' }}<br><b><bdi>{{ jlong(loan.reserve_expires if loan.status == 'reserved' else loan.due_date) }}</bdi></b></div></div>
+  <div class="loan-actions">
+    {% if loan.status == 'active' and loan.ext_choices %}<a href="/me">تمدید امانت</a>
+    {% elif loan.ext_note %}<span class="small" style="color:var(--color-muted)">{{ loan.ext_note }}</span>{% endif %}
+  </div>
+  {% else %}
+  <p style="margin:0">فعلاً کتابی در دست نداری. از قفسه‌های پایین یکی را انتخاب کن.</p>
+  <a href="/me">حساب من</a>
+  {% endif %}
+</section>
+{% endif %}
+
+<section class="container service-strip" id="service" aria-label="شرایط امانت">
+  <span>یک کتاب در هر زمان</span>
+  <span>دو هفته فرصت خواندن</span>
+  <span>تحویل در {{ cfg.PICKUP_PLACE }}</span>
+  <span>تمدید تا {{ fa(cfg.LOAN_MAX_TOTAL_DAYS) }} روز · جریمهٔ تأخیر روزی {{ money(cfg.FINE_PER_DAY) }}</span>
+</section>
+
+<section class="catalogue" id="shelves" aria-labelledby="shelvesTitle">
+  <div class="container">
+    <div class="section-heading">
+      <h2 id="shelvesTitle">در قفسه‌های کاوی کنج</h2>
+      <a href="/books">فهرست کامل {{ icon('arrow-left') }}</a>
+    </div>
+    <form class="search" role="search" method="get" action="/books">
+      <label class="sr-only" for="q">جست‌وجوی کتاب</label>
+      <input id="q" type="search" name="q" placeholder="نام کتاب، نویسنده یا موضوع را جست‌وجو کنید…" autocomplete="off">
+      <button class="icon-button" type="submit" aria-label="جست‌وجو">{{ icon('search') }}</button>
+    </form>
+    <nav class="topic-nav" aria-label="موضوع‌ها">
+      {% for t in tabs %}<a href="{{ t.href }}" {% if t.active %}aria-current="true"{% endif %}>{{ t.label }}</a>{% endfor %}
+    </nav>
+    <form class="filter-row" method="get" action="/#shelves" id="filters">
+      {% if category %}<input type="hidden" name="category" value="{{ category }}">{% endif %}
+      <label class="check-label"><input type="checkbox" name="available" value="1" {{ 'checked' if available }}> فقط موجود در قفسه</label>
+      <label>مرتب‌سازی: <select name="sort"><option value="newest" {{ 'selected' if sort == 'newest' }}>جدیدترین</option><option value="title" {{ 'selected' if sort == 'title' }}>الفبایی</option></select></label>
+      <noscript><button class="button" type="submit">اعمال</button></noscript>
+    </form>
+    {% if books %}
+    <ul class="book-grid">
+      {% for b in books %}{{ tile(b, ratings, loop.index > 4) }}
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="empty">کتابی پیدا نشد. <a href="/#shelves">پاک کردن فیلترها</a></p>
+    {% endif %}
+  </div>
+</section>
+
+{% if member and picks['items'] %}
+<section class="discovery" aria-labelledby="discTitle">
+  <div class="container discovery-inner">
+    <div><h2 id="discTitle">کشف بعدی تو</h2>
+      <p>{{ 'بر اساس کتاب‌هایی که امانت گرفته‌ای' if picks.basis == 'history' else 'بر اساس علاقه‌هایی که هنگام عضویت انتخاب کرده‌ای' }}</p></div>
+    <ul class="recommendations">
+      {% for it in picks['items'] %}{% set b = it.book %}
+      <li class="recommendation">
+        <a class="cover-link" href="/books/{{ b.code }}" tabindex="-1" aria-hidden="true">{{ cover(b, 'thumb') }}</a>
+        <div><h3><a href="/books/{{ b.code }}">{{ b.title }}</a></h3>
+          <p>{{ it.reason }}</p>
+          <span class="availability" data-state="{{ b.status.state }}">{{ b.status_label }}</span></div>
+      </li>{% endfor %}
+    </ul>
+  </div>
+</section>
+{% endif %}
+
+{% if not member %}
+<section class="discovery" aria-label="عضویت">
+  <div class="container discovery-inner">
+    <div><h2>با کتاب‌ها همراه شو</h2><p>عضو شو، کتاب امانت بگیر و در کلوپ کتاب‌خوان‌ها مسیر خواندنت را ثبت کن.</p></div>
+    <a class="button button-primary" href="/app/register">عضویت در کتابخانه</a>
+  </div>
+</section>
+{% endif %}
+
+<section class="about" aria-labelledby="aboutTitle">
+  <h2 id="aboutTitle">یک کتابخانه، برای کشف‌های مشترک</h2>
+  <p>کاوی کنج، کتابخانه‌ای تخصصی و دوستانه برای کودکان، والدین، مربیان و تسهیلگران است؛ برای شناخت عمیق‌تر کودک، طبیعت و دنیای پیرامون. خدمات کتابخانه فعلاً برای ساکنان مشهد است.</p>
+</section>
+{% endblock %}

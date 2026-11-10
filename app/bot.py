@@ -69,10 +69,10 @@ def main_keyboard(member) -> ReplyKeyboardMarkup:
 
     if member:
         third = BTN_LOG if member["club"] else BTN_CLUB
-        rows = [[web(BTN_CATALOG, "/")], [KeyboardButton(BTN_ME), KeyboardButton(BTN_EXTEND)],
+        rows = [[web(BTN_CATALOG, "/books")], [KeyboardButton(BTN_ME), KeyboardButton(BTN_EXTEND)],
                 [KeyboardButton(third)], [KeyboardButton(BTN_SITE), KeyboardButton(BTN_RULES)]]
     else:
-        rows = [[web(BTN_REGISTER, "/app/register")], [web(BTN_CATALOG, "/")],
+        rows = [[web(BTN_REGISTER, "/app/register")], [web(BTN_CATALOG, "/books")],
                 [KeyboardButton(BTN_LINK), KeyboardButton(BTN_RULES)]]
     return ReplyKeyboardMarkup(rows, resize_keyboard=True, is_persistent=True)
 
@@ -222,11 +222,11 @@ async def rules(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 async def catalog_link(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    text = "📚 فهرست کتاب‌ها و وضعیت قفسه:\n" + config.BASE_URL + "/\n\nیا کد کتاب (مثلاً NS-012) را همین‌جا بفرستید."
+    text = "📚 فهرست کتاب‌ها و وضعیت قفسه:\n" + config.BASE_URL + "/books\n\nیا کد کتاب (مثلاً NS-012) را همین‌جا بفرستید."
     buttons = None
     if _https():
         buttons = InlineKeyboardMarkup([[InlineKeyboardButton("📚 باز کردن فهرست",
-                                                              web_app=WebAppInfo(config.BASE_URL + "/"))]])
+                                                              web_app=WebAppInfo(config.BASE_URL + "/books"))]])
     await update.effective_message.reply_text(text, reply_markup=buttons)
 
 
@@ -626,7 +626,7 @@ async def setup_bot(bot) -> None:
         BotCommand("rules", "قوانین کتابخانه"),
     ])
     if _https():
-        await bot.set_chat_menu_button(menu_button=MenuButtonWebApp("کتاب‌ها", WebAppInfo(config.BASE_URL + "/")))
+        await bot.set_chat_menu_button(menu_button=MenuButtonWebApp("کتاب‌ها", WebAppInfo(config.BASE_URL + "/books")))
 
 
 def build_application(webhook: bool = False) -> Application:

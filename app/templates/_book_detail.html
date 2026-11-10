@@ -1,0 +1,57 @@
+{% from "_macros.html" import icon, cover %}
+{% set b = book %}
+<div class="book-detail" data-code="{{ b.code }}" data-action="{{ action.kind }}">
+  <section data-step="details">
+    <div class="dialog-header"><h2 id="dlgTitle">{{ b.title }}</h2>
+      <button class="dialog-close" type="button" data-close aria-label="بستن">×</button></div>
+    <div class="book-detail-layout">
+      <div>{{ cover(b, 'detail-cover') }}</div>
+      <div>
+        {% if b.author %}<p class="book-author" style="white-space:normal">{{ b.author }}</p>{% endif %}
+        {% if b.translator %}<p class="book-author" style="white-space:normal">ترجمهٔ {{ b.translator }}</p>{% endif %}
+        <p class="detail-code">کد کتاب: <bdi dir="ltr">{{ b.code }}</bdi></p>
+        <p>{% for t in [b.topic1, b.topic2] if t %}<span class="tag">{{ t }}</span> {% endfor %}</p>
+        <p class="book-rating">{% if rate and rate.n %}★ {{ fa(rate.avg) }} ({{ fa(rate.n) }} نظر){% else %}هنوز نظری ثبت نشده{% endif %}</p>
+        <p><span class="availability" data-state="{{ b.status.state }}">{{ b.status_label }}</span>
+          {% if b.status.waiting %} · <span class="queue-count" style="display:inline">{{ fa(b.status.waiting) }} نفر در صف</span>{% endif %}</p>
+        <p class="detail-summary">{{ b.summary or b.short_intro or 'معرفی این کتاب به‌زودی اضافه می‌شود.' }}</p>
+      </div>
+    </div>
+    {% if reviews %}
+    <h3 style="margin-block:20px 0">نظر خوانندگان</h3>
+    {% for r in reviews %}<div class="review-preview"><header><span>{{ r.name }}</span><span>{% if r.rating %}<span role="img" aria-label="امتیاز {{ fa(r.rating) }} از ۵">{{ '★' * r.rating }}</span> {% endif %}<bdi>{{ r.date }}</bdi></span></header><p>{{ r.text }}</p></div>{% endfor %}
+    {% if review_total > reviews|length %}<p class="small" style="color:var(--color-muted)">و {{ fa(review_total - reviews|length) }} نظر دیگر</p>{% endif %}
+    {% endif %}
+    <div class="dialog-actions">
+      {% if action.kind in ('borrow', 'queue') %}
+        <button class="button button-primary" type="button" data-go-borrow>{{ icon('book') }} {{ 'درخواست امانت' if action.kind == 'borrow' else 'رفتن به صف انتظار' }}</button>
+      {% elif action.kind == 'guest' %}
+        <button class="button button-primary" type="button" data-go-borrow data-tg-only hidden>{{ icon('book') }} {{ 'درخواست امانت' if b.status.state == 'available' else 'رفتن به صف انتظار' }}</button>
+        <p class="borrow-helper" data-guest-note>برای امانت <a href="/login?next=/books/{{ b.code }}">وارد شوید</a> یا <a href="/app/register">عضو شوید</a>.</p>
+      {% else %}
+        <p class="form-notice" role="status" data-kind="info" style="background:var(--color-soft)">{{ action.text }}</p>
+      {% endif %}
+    </div>
+  </section>
+
+  <section data-step="borrow" hidden>
+    <div class="dialog-header"><h2>{{ 'درخواست امانت' if b.status.state == 'available' else 'رفتن به صف انتظار' }}</h2>
+      <button class="dialog-close" type="button" data-close aria-label="بستن">×</button></div>
+    <div class="book-detail-layout" style="grid-template-columns:72px minmax(0,1fr)">
+      <div>{{ cover(b, 'detail-cover') }}</div><p style="margin:0;font-weight:700">{{ b.title }}</p>
+    </div>
+    <form data-borrow-form novalidate>
+      <fieldset class="borrow-duration"><legend>چند روز کتاب دستتان باشد؟</legend>
+        {% for d in days %}<label class="duration-option"><input type="radio" name="days" value="{{ d }}" {{ 'checked' if d == default_days }}> {{ fa(d) }} روز</label>{% endfor %}
+      </fieldset>
+      <p class="borrow-helper">مهلت از روز تحویل گرفتن در {{ cfg.PICKUP_PLACE }} حساب می‌شود. با تمدید، کل مدت حداکثر {{ fa(cfg.LOAN_MAX_TOTAL_DAYS) }} روز می‌شود.</p>
+      <div class="form-notice" role="status" data-notice hidden></div>
+      <div class="dialog-actions">
+        <button class="button button-primary" type="submit" data-submit>ثبت درخواست</button>
+        <button class="button" type="button" data-retry hidden>تلاش دوباره</button>
+        <button class="button" type="button" data-back>بازگشت</button>
+        <button class="button" type="button" data-close>بستن</button>
+      </div>
+    </form>
+  </section>
+</div>

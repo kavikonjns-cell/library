@@ -1,0 +1,15 @@
+{% macro icon(name) %}<svg class="icon" aria-hidden="true"><use href="/static/site/icons.svg#{{ name }}"/></svg>{% endmacro %}
+
+{% macro cover(b, cls='book-cover') %}{% set c = cover_url(b.code) %}{% if c %}<img class="{{ cls }}" src="{{ c }}" alt="{{ b.title }}" loading="lazy" width="180" height="270" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'cover-fallback',textContent:this.alt}))">{% else %}<div class="cover-fallback {{ 'thumb' if cls != 'book-cover' }}" role="img" aria-label="{{ b.title }}">{{ b.title }}</div>{% endif %}{% endmacro %}
+
+{% macro tile(b, ratings, hide_mobile=False) %}
+<li class="book-tile {{ 'hide-mobile' if hide_mobile }}" data-code="{{ b.code }}">
+  <a class="cover-link" href="/books/{{ b.code }}" tabindex="-1" aria-hidden="true">{{ cover(b) }}</a>
+  <h3 class="book-title"><a href="/books/{{ b.code }}" data-book="{{ b.code }}">{{ b.title }}</a></h3>
+  {% if b.author %}<p class="book-author">{{ b.author }}</p>{% endif %}
+  {% set r = ratings.get(b.code) %}
+  <p class="book-rating">{% if r and r.n %}<span role="img" aria-label="امتیاز {{ fa(r.avg) }} از ۵، از {{ fa(r.n) }} امتیاز">★ {{ fa(r.avg) }} ({{ fa(r.n) }} نظر)</span>{% elif r and r.texts %}{{ fa(r.texts) }} نظر{% else %}هنوز نظری ثبت نشده{% endif %}</p>
+  <span class="availability" data-state="{{ b.status.state }}">{{ b.status_label }}</span>
+  {% if b.status.waiting %}<span class="queue-count">{{ fa(b.status.waiting) }} نفر در صف</span>{% endif %}
+</li>
+{% endmacro %}

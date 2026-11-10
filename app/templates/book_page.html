@@ -1,0 +1,11 @@
+{% extends "site_base.html" %}
+{% block title %}{{ book.title }} · {{ cfg.LIBRARY_NAME }}{% endblock %}
+{% block description %}{{ (book.summary or book.short_intro or book.title)[:150] }}{% endblock %}
+{% block main %}
+<section class="container book-standalone">
+  <p><a href="/books">← فهرست کتاب‌ها</a></p>
+  <div class="standalone-card" id="standalone">{% include "_book_detail.html" %}</div>
+</section>
+<script>window.BOOKS_SIGNED_IN = {{ 'true' if member else 'false' }}; window.BOOK_PAGE = true;</script>
+<script src="/static/site/catalogue.js" defer></script>
+{% endblock %}
