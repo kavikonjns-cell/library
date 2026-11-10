@@ -13,7 +13,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 
-from . import accounts, club, config, covers, exporter, importer, jalali, member_web, notify, services
+from . import accounts, club, config, covers, exporter, importer, jalali, member_web, notify, recommend, services
 from .db import connect, upsert_books
 from .telegram_auth import validate_init_data
 
@@ -96,8 +96,11 @@ def _public_routes(app: FastAPI) -> None:
         for b in books:  # the coloured dot already marks the state, so drop the emoji from the label
             b["status_label"] = re.sub(r"^[^\w\u0600-\u06FF]+", "", b["status_label"])
         loan = member_web.overview(member["code"], jalali.today())["loan"] if member else None
+        picks = recommend.suggest(member["code"]) if member else {"basis": "none", "items": []}
+        for it in picks["items"]:
+            it["book"]["status_label"] = re.sub(r"^[^\w\u0600-\u06FF]+", "", it["book"]["status_label"])
         return templates.TemplateResponse(request, "home.html", {
-            "member": member, "loan": loan, "books": books[:6], "tabs": tabs, "category": category,
+            "member": member, "loan": loan, "picks": picks, "books": books[:6], "tabs": tabs, "category": category,
             "available": only_free, "sort": sort, "ratings": ratings,
             "flash": request.session.pop("flash", None),
         })

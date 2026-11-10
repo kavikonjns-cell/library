@@ -78,6 +78,7 @@ img{max-width:100%}
 /* discovery / about / footer */
 .discovery{background:var(--color-discovery);padding-block:32px}
 .discovery-inner{display:flex;gap:24px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.recommendations{display:grid;grid-template-columns:1fr 1fr;gap:24px;list-style:none;padding:0;margin:0;flex:1;max-width:760px}.recommendation{display:flex;gap:16px;align-items:center}.recommendation img,.recommendation .cover-fallback{width:72px;height:108px;aspect-ratio:2/3;object-fit:contain;flex-shrink:0;box-shadow:var(--shadow-cover);border-radius:var(--radius-cover);background:var(--color-soft);font-size:var(--text-xs);padding:4px;overflow:hidden}.recommendation h3{margin:0;font-size:var(--text-base);line-height:1.6}.recommendation h3 a{color:var(--color-text);text-decoration:none}.recommendation p{margin:4px 0;font-size:var(--text-sm);color:var(--color-sage-text)}
 .discovery h2{margin:0;font-size:var(--text-2xl)}.discovery p{margin:4px 0 0;color:var(--color-sage-text)}
 .about{max-width:var(--reading-max);margin-inline:auto;text-align:center;padding:40px 20px}
 .about h2{margin:0 0 8px;font-size:var(--text-2xl)}.about p{margin:0 0 8px}
@@ -104,5 +105,6 @@ img{max-width:100%}
  .book-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:28px 20px}.book-cover,.cover-fallback{width:min(100%,140px)}
  .book-title{font-size:1rem}.book-author,.book-rating,.availability{font-size:.8125rem}
  .hide-mobile{display:none}
+ .recommendations{grid-template-columns:1fr}
  .footer-inner{display:block}.footer-inner>*{margin-block:12px}
 }

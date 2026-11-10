@@ -38,3 +38,12 @@ def test_full_catalogue_and_anchor():
     c = TestClient(create_app())
     t = c.get("/books").text
     assert 'data-anchor="book-NS-001"' in t and "NS-001" in t
+
+
+def test_member_with_interests_sees_discovery_band():
+    c = TestClient(create_app())
+    c.post("/api/register/web", json={"form": {"name": "سارا", "role": "سایر", "phone": "09151112233", "agree": True,
+                                               "username": "sara", "password": "secret12", "topics": ["مغز و ذهن"]}})
+    t = c.get("/").text
+    assert "کشف بعدی تو" in t and "بر اساس علاقه‌هایی" in t and 'class="recommendation"' in t
+    assert "کشف بعدی تو" not in TestClient(create_app()).get("/").text   # guests get no fake personalisation

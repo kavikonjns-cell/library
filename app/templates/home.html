@@ -81,6 +81,24 @@
   </div>
 </section>
 
+{% if member and picks['items'] %}
+<section class="discovery" aria-labelledby="discTitle">
+  <div class="container discovery-inner">
+    <div><h2 id="discTitle">کشف بعدی تو</h2>
+      <p>{{ 'بر اساس کتاب‌هایی که امانت گرفته‌ای' if picks.basis == 'history' else 'بر اساس علاقه‌هایی که هنگام عضویت انتخاب کرده‌ای' }}</p></div>
+    <ul class="recommendations">
+      {% for it in picks['items'] %}{% set b = it.book %}
+      <li class="recommendation">
+        <a class="cover-link" href="/books#book-{{ b.code }}" tabindex="-1" aria-hidden="true">{{ cover(b, 'thumb') }}</a>
+        <div><h3><a href="/books#book-{{ b.code }}">{{ b.title }}</a></h3>
+          <p>{{ it.reason }}</p>
+          <span class="availability" data-state="{{ b.status.state }}">{{ b.status_label }}</span></div>
+      </li>{% endfor %}
+    </ul>
+  </div>
+</section>
+{% endif %}
+
 {% if not member %}
 <section class="discovery" aria-label="عضویت">
   <div class="container discovery-inner">
