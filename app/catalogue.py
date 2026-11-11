@@ -6,7 +6,7 @@ import re
 from . import club, config, jalali, services
 from .db import connect
 
-PAGE_SIZE = 24
+PAGE_SIZE = 1000  # effectively "no paging": members expect to see every book of a topic on one page
 SORTS = ("newest", "title", "rating")
 SHELF_TOPICS = [t for t in config.TOPICS if t != "متفرقه"]
 

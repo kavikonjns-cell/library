@@ -27,9 +27,9 @@ def test_list_count_pagination_and_groups():
     total = len(services.catalog())
     t = c.get("/books").text
     assert f"{total} کتاب".translate(str.maketrans("0123456789", "۰۱۲۳۴۵۶۷۸۹")) in t
-    assert t.count('class="book-tile') == catalogue.PAGE_SIZE and 'rel="next"' in t and "catalogue-group-title" in t
-    last = c.get("/books", params={"page": 99}).text      # out-of-range page falls back to the last one
-    assert last.count('class="book-tile') == total - catalogue.PAGE_SIZE * ((total - 1) // catalogue.PAGE_SIZE)
+    # every book is on the one page (no hidden second page), grouped by topic
+    assert t.count('class="book-tile') == total and 'rel="next"' not in t and "catalogue-group-title" in t
+    assert c.get("/books", params={"page": 99}).text.count('class="book-tile') == total
 
 
 def test_search_is_forgiving():
@@ -51,7 +51,7 @@ def test_filters_and_sort():
     t = c.get("/books", params={"category": topic, "available": "1", "sort": "title"}).text
     assert 'aria-current="true"' in t and "catalogue-group-title" in t
     # an unknown topic is ignored, not an empty page
-    assert c.get("/books", params={"category": "x"}).text.count('class="book-tile') == catalogue.PAGE_SIZE
+    assert c.get("/books", params={"category": "x"}).text.count('class="book-tile') == len(services.catalog())
 
 
 def test_detail_fragment_page_and_404():
@@ -88,3 +88,12 @@ def test_login_returns_to_book(monkeypatch):
     c.get("/logout")
     r = c.post("/login/password", data={"username": "sara", "password": "secret12", "next": "//evil.example"}, follow_redirects=False)
     assert r.headers["location"] == "/me"        # no open redirect
+
+
+def test_every_book_of_a_topic_is_listed():
+    c = _client()
+    books = services.catalog()
+    for topic in catalogue.SHELF_TOPICS:
+        want = sum(1 for b in books if topic in catalogue.topics_of(b))
+        got = c.get("/books", params={"category": topic}).text.count('class="book-tile')
+        assert got == want, topic

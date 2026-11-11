@@ -7,7 +7,7 @@ import logging
 import re
 from zoneinfo import ZoneInfo
 
-from telegram import (BotCommand, InlineKeyboardButton, InlineKeyboardMarkup, KeyboardButton, MenuButtonWebApp,
+from telegram import (BotCommand, BotCommandScopeChat, InlineKeyboardButton, InlineKeyboardMarkup, KeyboardButton, MenuButtonWebApp,
                       ReplyKeyboardMarkup, Update, WebAppInfo)
 from telegram.ext import (Application, CallbackQueryHandler, CommandHandler, ContextTypes, MessageHandler,
                           filters)
@@ -30,6 +30,10 @@ BTN_LINK = "🔗 قبلاً عضو شده‌ام"
 BTN_CLUB = "📖 کلوپ کتاب‌خوان‌ها"
 BTN_LOG = "✍️ ثبت مطالعهٔ امروز"
 BTN_SITE = "🌐 ورود به سایت"
+BTN_A_HOME = "📊 خلاصهٔ امروز"
+BTN_A_LOANS = "📗 امانت‌های فعال"
+BTN_A_FIND = "🔎 جست‌وجو"
+BTN_A_PANEL = "🛠 پنل وب"
 
 RULES_TEXT = (
     "📜 قوانین کتابخانه کاوی کنج\n\n"
@@ -63,10 +67,17 @@ def _admin_name(update: Update) -> str:
     return (u.full_name or u.username or str(u.id)) if u else ""
 
 
-def main_keyboard(member) -> ReplyKeyboardMarkup:
+def main_keyboard(member, update=None) -> ReplyKeyboardMarkup:
     def web(label: str, path: str) -> KeyboardButton:
         return KeyboardButton(label, web_app=WebAppInfo(config.BASE_URL + path)) if _https() else KeyboardButton(label)
 
+    if update is not None and _is_admin(update):  # the librarian gets librarian buttons, not the signup form
+        rows = [[KeyboardButton(BTN_A_HOME), KeyboardButton(BTN_A_LOANS)],
+                [KeyboardButton(BTN_A_FIND), web(BTN_A_PANEL, "/admin")],
+                [web(BTN_CATALOG, "/books")]]
+        if member:
+            rows.append([KeyboardButton(BTN_ME), KeyboardButton(BTN_EXTEND)])
+        return ReplyKeyboardMarkup(rows, resize_keyboard=True, is_persistent=True)
     if member:
         third = BTN_LOG if member["club"] else BTN_CLUB
         rows = [[web(BTN_CATALOG, "/books")], [KeyboardButton(BTN_ME), KeyboardButton(BTN_EXTEND)],
@@ -106,17 +117,17 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     if payload.startswith("reg_"):
         if member:
-            return await _reply(update, f"شما قبلاً با کد {member['code']} عضو شده‌اید.", keyboard=main_keyboard(member))
+            return await _reply(update, f"شما قبلاً با کد {member['code']} عضو شده‌اید.", keyboard=main_keyboard(member, update))
         form = services.take_pending_form(payload[4:])
         if not form:
             return await _reply(update, "این لینک ثبت‌نام منقضی شده است. لطفاً فرم عضویت را دوباره پر کنید.",
-                                keyboard=main_keyboard(None))
+                                keyboard=main_keyboard(None, update))
         return await _finish_registration(update, form)
 
     if payload.startswith("login_"):
         if not member:
             return await _reply(update, "برای ورود به سایت، اول باید در همین ربات عضو کتابخانه شوید.",
-                                keyboard=main_keyboard(None))
+                                keyboard=main_keyboard(None, update))
         ok = auth.approve(payload[6:], user.id)
         return await _reply(update, "✅ ورود تأیید شد. به صفحهٔ سایت برگردید؛ خودکار وارد می‌شوید." if ok
                             else "این کد ورود منقضی شده است. در سایت دوباره «ورود با تلگرام» را بزنید.")
@@ -129,7 +140,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                      "اگر قبلاً (با فرم کاغذی) عضو شده‌اید، «🔗 قبلاً عضو شده‌ام» را بزنید.")
         if not _https():
             greeting += "\n\nمی‌توانید متن آماده‌شدۀ فرم عضویت را هم مستقیم همین‌جا بفرستید."
-    await _reply(update, greeting, keyboard=main_keyboard(member))
+    if _is_admin(update):
+        greeting = f"سلام {user.first_name or ''} 🛠\nشما مسئول کتابخانه‌اید؛ دکمه‌های پایین را بزنید.\n\n" + ADMIN_HELP
+    await _reply(update, greeting, keyboard=main_keyboard(member, update))
 
     if payload.startswith("b_"):
         await show_book(update, context, payload[2:])
@@ -144,7 +157,7 @@ async def _finish_registration(update: Update, form: dict) -> None:
     user = update.effective_user
     res = services.register_member(form, user.id, user.username or "")
     new_member = services.get_member_by_tg(user.id)
-    await _reply(update, res.message, keyboard=main_keyboard(new_member))
+    await _reply(update, res.message, keyboard=main_keyboard(new_member, update))
     await _deliver(res)
 
 
@@ -157,7 +170,7 @@ async def on_web_app_data(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     member = services.get_member_by_tg(update.effective_user.id)
     if data.get("t") == "register":
         if member:
-            return await _reply(update, f"شما قبلاً با کد {member['code']} عضو شده‌اید.", keyboard=main_keyboard(member))
+            return await _reply(update, f"شما قبلاً با کد {member['code']} عضو شده‌اید.", keyboard=main_keyboard(member, update))
         return await _finish_registration(update, data.get("form") or {})
     if data.get("t") == "request":
         res = services.request_book(member["code"] if member else None, str(data.get("code", "")), int(data.get("days") or 0))
@@ -191,7 +204,7 @@ async def show_book(update: Update, context: ContextTypes.DEFAULT_TYPE, code: st
 async def me(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     member = services.get_member_by_tg(update.effective_user.id)
     if not member:
-        await _reply(update, "هنوز عضو نیستید. «📝 فرم عضویت» را بزنید.", keyboard=main_keyboard(None))
+        await _reply(update, "هنوز عضو نیستید. «📝 فرم عضویت» را بزنید.", keyboard=main_keyboard(None, update))
         return
     buttons = []
     with connect() as conn:
@@ -236,6 +249,18 @@ async def on_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user = update.effective_user
     member = services.get_member_by_tg(user.id)
 
+    if _is_admin(update):
+        if text == BTN_A_HOME:
+            return await admin_home(update, context)
+        if text == BTN_A_LOANS:
+            return await admin_loans(update, context)
+        if text == BTN_A_PANEL:  # without https the web-app button is a plain text button
+            return await _reply(update, f"پنل وب: {config.BASE_URL}/admin")
+        if text == BTN_A_FIND:
+            context.user_data["finding"] = True
+            return await _reply(update, "نام یا کد کتاب یا عضو (یا شمارهٔ تماس) را بنویسید:")
+        if context.user_data.pop("finding", False) and text.strip():
+            return await _find(update, text.strip())
     if text == BTN_ME:
         return await me(update, context)
     if text == BTN_EXTEND:
@@ -278,7 +303,7 @@ async def on_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if member:
             return await _reply(update, f"شما قبلاً با کد {member['code']} عضو شده‌اید.")
         res = services.register_member(form, user.id, user.username or "")
-        await _reply(update, res.message, keyboard=main_keyboard(services.get_member_by_tg(user.id)) if res.ok else None)
+        await _reply(update, res.message, keyboard=main_keyboard(services.get_member_by_tg(user.id), update) if res.ok else None)
         await _deliver(res)
         return
 
@@ -290,7 +315,7 @@ async def on_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if _is_admin(update):
         return await _reply(update, ADMIN_HELP)
     await _reply(update, "متوجه نشدم 🙂 برای دیدن کتاب‌ها «📚 فهرست کتاب‌ها» را بزنید یا کد کتاب (مثل NS-012) را بفرستید.",
-                 keyboard=main_keyboard(member))
+                 keyboard=main_keyboard(member, update))
 
 
 async def link_member(update: Update, code: str, phone: str) -> None:
@@ -306,7 +331,7 @@ async def link_member(update: Update, code: str, phone: str) -> None:
         conn.execute("UPDATE members SET tg_user_id = ?, tg_username = ? WHERE code = ?",
                      (user.id, user.username or "", code))
     await _reply(update, f"✅ حساب تلگرام شما به عضویت {code} ({m['name']}) وصل شد.",
-                 keyboard=main_keyboard(services.get_member(code)))
+                 keyboard=main_keyboard(services.get_member(code), update))
 
 
 async def on_receipt(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -333,7 +358,7 @@ async def on_receipt(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
 async def club_home(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     member = services.get_member_by_tg(update.effective_user.id)
     if not member:
-        return await _reply(update, "اول در کتابخانه عضو شوید.", keyboard=main_keyboard(None))
+        return await _reply(update, "اول در کتابخانه عضو شوید.", keyboard=main_keyboard(None, update))
     if not member["club"]:
         return await _reply(update, (
             f"📖 {config.CLUB_NAME}\n\n"
@@ -433,10 +458,10 @@ async def on_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         if sub == "join":
             res = club.join(member["code"])
             await q.edit_message_reply_markup(None)
-            return await _reply(update, res.message, keyboard=main_keyboard(services.get_member(member["code"])))
+            return await _reply(update, res.message, keyboard=main_keyboard(services.get_member(member["code"]), update))
         if sub == "leave":
             res = club.leave(member["code"])
-            return await _reply(update, res.message, keyboard=main_keyboard(services.get_member(member["code"])))
+            return await _reply(update, res.message, keyboard=main_keyboard(services.get_member(member["code"]), update))
         if sub == "pub":
             return await _reply(update, club.set_public(member["code"], val == "1").message)
         if sub == "log":
@@ -585,6 +610,10 @@ async def admin_find(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
     term = " ".join(context.args).strip()
     if not term:
         return await _reply(update, "شکل درست: /find بازی")
+    await _find(update, term)
+
+
+async def _find(update: Update, term: str) -> None:
     like = f"%{term}%"
     with connect() as conn:
         books = conn.execute("SELECT code, title FROM books WHERE title LIKE ? OR author LIKE ? OR code LIKE ? LIMIT 15",
@@ -625,6 +654,21 @@ async def setup_bot(bot) -> None:
         BotCommand("site", "ورود به سایت"),
         BotCommand("rules", "قوانین کتابخانه"),
     ])
+    admin_commands = [
+        BotCommand("admin", "خلاصهٔ امروز و کارهای مانده"),
+        BotCommand("loans", "امانت‌های فعال و ثبت برگشت"),
+        BotCommand("lend", "امانت حضوری: /lend NS-012 M-07 14"),
+        BotCommand("return", "ثبت برگشت: /return NS-012"),
+        BotCommand("member", "مشخصات عضو: /member M-07"),
+        BotCommand("find", "جست‌وجوی کتاب یا عضو"),
+        BotCommand("daily", "اجرای دستی بررسی روزانه"),
+        BotCommand("books", "فهرست کتاب‌ها"),
+    ]
+    for admin_id in config.ADMIN_IDS:
+        try:
+            await bot.set_my_commands(admin_commands, scope=BotCommandScopeChat(admin_id))
+        except Exception:
+            log.warning("could not set the librarian command list for %s", admin_id)
     if _https():
         await bot.set_chat_menu_button(menu_button=MenuButtonWebApp("کتاب‌ها", WebAppInfo(config.BASE_URL + "/books")))
 
