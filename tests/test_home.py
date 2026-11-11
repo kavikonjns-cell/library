@@ -19,7 +19,7 @@ def test_home_filters():
     c = TestClient(create_app())
     topic = "مغز و ذهن"
     t = c.get("/", params={"category": topic, "available": "1", "sort": "title"}).text
-    assert 'aria-current="true"' in t and t.count('class="book-tile') <= 6
+    assert 'aria-current="true"' in t and t.count('class="book-tile') >= 1
     # unknown category falls back to all topics instead of an empty page
     assert c.get("/", params={"category": "x"}).text.count('class="book-tile') == 6
 
@@ -41,3 +41,14 @@ def test_member_with_interests_sees_discovery_band():
     t = c.get("/").text
     assert "کشف بعدی تو" in t and "بر اساس علاقه‌هایی" in t and 'class="recommendation"' in t
     assert "کشف بعدی تو" not in TestClient(create_app()).get("/").text   # guests get no fake personalisation
+
+
+def test_home_topic_tab_lists_every_book_of_the_topic():
+    from app.web import grouped_catalog
+    c = TestClient(create_app())
+    groups = dict(grouped_catalog())
+    topic = max((t for t in groups if t != "متفرقه"), key=lambda t: len(groups[t]))
+    assert len(groups[topic]) > 6
+    t = c.get("/", params={"category": topic}).text
+    assert t.count('class="book-tile') == len(groups[topic])
+    assert f"/books?category=" in t  # «فهرست کامل» keeps the topic
