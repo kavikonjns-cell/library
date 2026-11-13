@@ -125,6 +125,9 @@ def membership_problems(member, on: dt.date) -> list[str]:
         problems.append("پرداخت حق عضویت شما هنوز تأیید نشده است. عکس فیش واریز را در همین ربات بفرستید.")
     if _date(member["valid_until"]) < on:
         problems.append(f"اعتبار عضویت شما در {to_jalali(member['valid_until'])} تمام شده است. برای تمدید عضویت با مسئول کتابخانه هماهنگ کنید.")
+    elif days_left(member["valid_until"], on) <= config.EXPIRY_WARNING_DAYS:
+        problems.append(f"اعتبار عضویت شما در {to_jalali(member['valid_until'])} تمام می‌شود و در {fa(config.EXPIRY_WARNING_DAYS)} روز آخر "
+                        "امانت کتاب جدید ممکن نیست. کتاب‌هایتان را تحویل بدهید یا عضویت را تمدید کنید.")
     return problems
 
 
@@ -671,6 +674,16 @@ def delete_member(member_code: str, on: dt.date | None = None) -> Result:
     return Result(True, f"عضو {member_code} ({m['name']}) و همهٔ امانت‌ها و پرداخت‌هایش پاک شد.", notices)
 
 
+def delete_all_members(on: dt.date | None = None) -> Result:
+    """Wipe every member and everything recorded for them (used once to clear test registrations)."""
+    on = on or _today()
+    with connect() as conn:
+        codes = [r["code"] for r in conn.execute("SELECT code FROM members ORDER BY seq")]
+    for code in codes:
+        delete_member(code, on)
+    return Result(True, f"{fa(len(codes))} عضو آزمایشی با همهٔ امانت‌ها و پرداخت‌هایشان پاک شد.", [])
+
+
 def delete_payment(payment_id: int) -> Result:
     with connect() as conn:
         p = conn.execute("SELECT * FROM payments WHERE id = ?", (payment_id,)).fetchone()
@@ -822,8 +835,8 @@ def daily_tasks(on: dt.date | None = None) -> list[Notice]:
 
 
 def expiring_members(conn, on: dt.date) -> list:
-    """Active members whose membership ends within the warning window (today included), soonest first."""
-    last = (on + dt.timedelta(days=config.EXPIRY_WARNING_DAYS)).isoformat()
+    """Active members whose membership ends within the first-warning window (today included), soonest first."""
+    last = (on + dt.timedelta(days=config.EXPIRY_FIRST_WARNING_DAYS)).isoformat()
     return conn.execute("SELECT * FROM members WHERE status = 'active' AND valid_until >= ? AND valid_until <= ?"
                         " ORDER BY valid_until, seq", (on.isoformat(), last)).fetchall()
 
@@ -833,28 +846,49 @@ def days_left(valid_until: str, on: dt.date) -> int:
 
 
 def _left_phrase(days: int) -> str:
-    if days == config.EXPIRY_WARNING_DAYS == 14:
+    if days <= 0:
+        return "امروز آخرین روز"
+    if days == 30:
+        return "فقط یک ماه"
+    if days == 14:
         return "فقط دو هفته"
-    return "امروز آخرین روز" if days <= 0 else f"فقط {fa(days)} روز"
+    return f"فقط {fa(days)} روز"
 
 
 def _expiry_warnings(conn, on: dt.date) -> list[Notice]:
-    """One warning per membership year: to the member and (as one list) to the librarians."""
-    notices, fresh = [], []
+    """Two warnings per membership year (30 and 14 days before the end), each once, to the member and
+    (as one list) to the librarians. `expiry_notified` holds tags like "<valid_until>:30,<valid_until>:14"."""
+    notices = {30: [], 14: []}
+    fresh = {30: [], 14: []}
     for m in expiring_members(conn, on):
-        if m["expiry_notified"] == m["valid_until"]:
-            continue
         days = days_left(m["valid_until"], on)
+        stage = 14 if days <= config.EXPIRY_WARNING_DAYS else 30
+        tag = f"{m['valid_until']}:{stage}"
+        sent = [t for t in (m["expiry_notified"] or "").split(",") if t]
+        if tag in sent or (stage == 30 and f"{m['valid_until']}:14" in sent):
+            continue
         left = _left_phrase(days)
-        text = (f"🔔 {left} تا پایان مهلت اعتبار عضویت شما در کتابخانه کاوی کنج باقی مانده است "
-                f"(تا {to_jalali(m['valid_until'])}).\nبرای تمدید مجدد عضویت اقدام کنید: با مسئول کتابخانه هماهنگ کنید"
-                f" یا تماس بگیرید: {fa(config.LIBRARY_PHONE)}")
-        notices.append(Notice(member_code=m["code"], text=text))
-        conn.execute("UPDATE members SET expiry_notified = ? WHERE code = ?", (m["valid_until"], m["code"]))
-        fresh.append(f"• {m['code']} {m['name']} ({fa(m['phone'])}): {_left_phrase(days)} تا {to_jalali(m['valid_until'])}")
-    if fresh:
-        notices.append(Notice(admins=True, text="⏳ اعتبار این اعضا رو به پایان است؛ برای تمدید پیگیری کنید:\n" + "\n".join(fresh)))
-    return notices
+        until = to_jalali(m["valid_until"])
+        if stage == 30:
+            text = (f"🔔 {left} تا پایان مهلت اعتبار عضویت شما در کتابخانه کاوی کنج باقی مانده است (تا {until}).\n"
+                    f"{fa(config.EXPIRY_WARNING_DAYS)} روز مانده به پایان دیگر کتاب جدید نمی‌توانید بگیرید؛ "
+                    f"پیش از آن کتابتان را تحویل بدهید و برای تمدید عضویت اقدام کنید: {fa(config.LIBRARY_PHONE)}")
+        else:
+            text = (f"⚠️ {left} تا پایان مهلت اعتبار عضویت شما باقی مانده است (تا {until}).\n"
+                    "از این پس امانت کتاب جدید ممکن نیست. کتاب‌هایتان را تحویل بدهید یا عضویت را تمدید کنید "
+                    f"(با مسئول کتابخانه هماهنگ کنید: {fa(config.LIBRARY_PHONE)}). امانت فعلی را هم می‌توانید پیش از سررسید تمدید کنید.")
+        notices[stage].append(Notice(member_code=m["code"], text=text))
+        sent.append(tag)
+        conn.execute("UPDATE members SET expiry_notified = ? WHERE code = ?", (",".join(sent), m["code"]))
+        fresh[stage].append(f"• {m['code']} {m['name']} ({fa(m['phone'])}): {left} تا {until}")
+    out = []
+    for stage in (30, 14):
+        out += notices[stage]
+        if fresh[stage]:
+            head = ("⏳ یک ماه به پایان اعتبار این اعضا مانده است:" if stage == 30
+                    else "⚠️ ۱۴ روز به پایان اعتبار این اعضا مانده؛ دیگر کتاب جدید نمی‌گیرند و باید تحویل بدهند یا تمدید کنند:")
+            out.append(Notice(admins=True, text=head + "\n" + "\n".join(fresh[stage])))
+    return out
 
 
 # ------------------------------------------------------------- summaries

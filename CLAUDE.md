@@ -20,7 +20,7 @@ Library management for «کتابخانه کودک و طبیعت کاوی کنج
 Library rules are in `app/config.py` (taken from the paper membership form and the library Excel file):
 one book at a time; 14 days, max 30 days total with extensions (extend before the due date; since Aban 1405
 the waitlist no longer blocks extensions);
-fine 50,000 toman/day up to 4 days; membership revoked at 5 days late; membership valid exactly one year from the registration/renewal date (14 days before the end: warning to the member in the bot and /me, and to librarians in the bot and the dashboard); fees by role 600k / 800k / 1M toman.
+fine 50,000 toman/day up to 4 days; membership revoked at 5 days late; membership valid exactly one year from the registration/renewal date (two warnings, 30 and 14 days before the end, to the member in the bot and /me and to librarians in the bot and the dashboard; in the last 14 days no new book can be borrowed: return or renew); fees by role 600k / 800k / 1M toman.
 
 ## Readers' club + member website (added later)
 - «کلوپ کتاب‌خوان‌های کاوی کنج» (`CLUB_NAME`, may be renamed): optional. Club members log daily reading

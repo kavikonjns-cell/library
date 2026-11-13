@@ -35,4 +35,10 @@
   <td>{{ fa(m.loans_count) }}</td>
 </tr>{% endfor %}
 </table></div>
+
+<div class="danger-zone"><form method="post" action="/admin/delete-all-members"
+  onsubmit="return confirm('همهٔ اعضا با تمام امانت‌ها، پرداخت‌ها و گزارش‌هایشان پاک می‌شوند. این کار برگشت ندارد. ادامه می‌دهید؟')">
+  <p class="small">🧹 پاک کردن همهٔ اعضا (فقط پیش از انتشار، برای حذف ثبت‌نام‌های آزمایشی). برای تأیید بنویسید: <b>پاک شود</b></p>
+  <input type="text" name="confirm" placeholder="پاک شود" autocomplete="off" required>
+  <button class="btn sm danger">🗑 پاک کردن همهٔ اعضا</button></form></div>
 {% endblock %}

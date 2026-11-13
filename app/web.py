@@ -371,6 +371,15 @@ def _admin_routes(app: FastAPI) -> None:
             res.message += " " + res2.message
         return _back(request, res.message.split("\n")[0] + (f" کد: {res.data.get('code')}" if res.ok else ""), res.ok)
 
+    @app.post("/admin/delete-all-members")
+    async def members_delete_all(request: Request):
+        _guard(request)
+        form = await request.form()
+        if str(form.get("confirm", "")).strip() != "پاک شود":
+            return _back(request, "برای پاک‌کردن همهٔ اعضا باید عبارت «پاک شود» را دقیق بنویسید.", False, "/admin/members")
+        res = services.delete_all_members()
+        return _back(request, res.message, res.ok, "/admin/members")
+
     @app.post("/admin/members/{code}/{action}")
     async def member_action(request: Request, code: str, action: str):
         _guard(request)
