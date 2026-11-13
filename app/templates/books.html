@@ -31,9 +31,11 @@
   {% if groups %}
   <div id="results">
   {% for topic, items in groups %}
-  <section class="catalogue-group" aria-labelledby="g{{ loop.index }}">
+  <section class="catalogue-group{{ ' is-preview' if preview }}" aria-labelledby="g{{ loop.index }}">
     <h2 class="catalogue-group-title accent-title" id="g{{ loop.index }}">{{ topic }} · {{ fa(items|length) }}</h2>
     <ul class="full-catalogue-grid">{% for b in items %}{{ tile(b, ratings) }}{% endfor %}</ul>
+    {% if preview %}{% set n = items|length %}<p class="group-more">
+      {% for cls, cap in (('more-lg', 8), ('more-md', 6), ('more-sm', 4)) %}{% if n > cap %}<a class="button {{ cls }}" href="{{ topic_href(topic) }}">نمایش بیشتر · همهٔ {{ fa(n) }} کتاب «{{ topic }}»</a>{% endif %}{% endfor %}</p>{% endif %}
   </section>
   {% endfor %}
   </div>

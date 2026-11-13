@@ -75,7 +75,7 @@ FINE_MAX_DAYS = _int("FINE_MAX_DAYS", 4)
 REVOKE_AFTER_LATE_DAYS = _int("REVOKE_AFTER_LATE_DAYS", 5)
 REMIND_DAYS_BEFORE = _int("REMIND_DAYS_BEFORE", 2)
 # From this Jalali month on, membership lasts until the end of next year.
-NEXT_YEAR_FROM_MONTH = 10
+EXPIRY_WARNING_DAYS = 14  # members and librarians are warned this many days before the membership ends
 
 ROLE_FEES = {
     "عضو باغ شبنم": _int("FEE_STAFF", 600_000),

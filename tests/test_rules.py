@@ -8,12 +8,25 @@ from .conftest import TODAY, make_member
 D = dt.timedelta
 
 
-def test_membership_validity_until_end_of_esfand():
-    # 1405/08/05 -> end of Esfand 1405
-    assert jalali.to_jalali(jalali.membership_valid_until(dt.date(2026, 10, 27))) == "۱۴۰۵/۱۲/۲۹"
-    # from 1 Dey on -> end of Esfand of next year; 1406 is a leap year in jdatetime -> 30 Esfand
+def test_membership_lasts_exactly_one_year():
+    # 1405/08/05 -> 1406/08/05, whatever the month of registration
+    assert jalali.to_jalali(jalali.membership_valid_until(dt.date(2026, 10, 27))) == "۱۴۰۶/۰۸/۰۵"
     dey = jalali.parse_jalali("1405/10/01")
-    assert jalali.jalali_year(jalali.membership_valid_until(dey)) == 1406
+    assert jalali.to_jalali(jalali.membership_valid_until(dey)) == "۱۴۰۶/۱۰/۰۱"
+    # 30 Esfand 1403 (leap) -> last day of Esfand 1404 (29 days)
+    assert jalali.to_jalali(jalali.membership_valid_until(jalali.parse_jalali("1403/12/30"))) == "۱۴۰۴/۱۲/۲۹"
+
+
+def test_two_week_expiry_warning_goes_to_member_and_librarians_once():
+    code = make_member(on=TODAY)
+    left = dt.date.fromisoformat(services.get_member(code)["valid_until"]) - D(days=14)
+    assert not [n for n in services.daily_tasks(left - D(days=1)) if "اعتبار" in n.text]   # 15 days left: nothing yet
+    notes = services.daily_tasks(left)
+    member_msg = [n for n in notes if n.member_code == code]
+    assert member_msg and "دو هفته" in member_msg[0].text
+    assert any(n.admins and code in n.text for n in notes)
+    # not repeated the next day; and a renewal starts a fresh cycle
+    assert not [n for n in services.daily_tasks(left + D(days=1)) if "اعتبار" in n.text]
 
 
 def test_register_issues_sequential_codes_and_fee():

@@ -32,6 +32,14 @@
   <td class="mono">{{ fa(r.phone) }}</td><td>{{ jdate(r.due_date) }}</td><td><a class="btn sm" href="/admin/loans">ثبت برگشت</a></td>
 </tr>{% endfor %}</table></div>{% else %}<p class="small">دیرکردی نیست. 🌿</p>{% endif %}
 
+<h2>⏳ اعتبار رو به پایان ({{ fa(cfg.EXPIRY_WARNING_DAYS) }} روز یا کمتر)</h2>
+{% if expiring %}<div class="tbl"><table>
+<tr><th>کد</th><th>نام</th><th>تماس</th><th>پایان اعتبار</th><th>مانده</th></tr>
+{% for m in expiring %}<tr>
+  <td><a href="/admin/members/{{ m.code }}">{{ m.code }}</a></td><td>{{ m.name }}</td><td class="mono">{{ fa(m.phone) }}</td>
+  <td>{{ jdate(m.valid_until) }}</td><td><span class="pill warn">{{ 'امروز آخرین روز' if m.left <= 0 else fa(m.left) ~ ' روز' }}</span></td>
+</tr>{% endfor %}</table></div>{% else %}<p class="small">کسی در دو هفتهٔ آینده منقضی نمی‌شود.</p>{% endif %}
+
 <h2>⏳ منتظر تأیید پرداخت حق عضویت</h2>
 {% if pending %}<div class="tbl"><table>
 <tr><th>کد</th><th>نام</th><th>نقش</th><th>مبلغ</th><th>فیش</th><th></th></tr>
