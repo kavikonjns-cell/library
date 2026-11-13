@@ -10,7 +10,7 @@ def test_guest_home():
     assert r.status_code == 200
     t = r.text
     assert "هر کتاب، آغاز یک کشف تازه" in t and "در قفسه‌های کاوی کنج" in t
-    assert t.count('class="book-tile') == 6 and 'href="/app/register"' in t
+    assert t.count('class="book-tile') == 12 and 'نمایش بیشتر' in t and 'href="/app/register"' in t
     assert "در امانت من" not in t and 'aria-label="امانت من"' not in t  # loan strip is for members only
     assert "کتابی پیدا نشد" not in t
 
@@ -21,7 +21,7 @@ def test_home_filters():
     t = c.get("/", params={"category": topic, "available": "1", "sort": "title"}).text
     assert 'aria-current="true"' in t and t.count('class="book-tile') >= 1
     # unknown category falls back to all topics instead of an empty page
-    assert c.get("/", params={"category": "x"}).text.count('class="book-tile') == 6
+    assert c.get("/", params={"category": "x"}).text.count('class="book-tile') == 12
 
 
 def test_member_loan_strip_and_logout(monkeypatch):
@@ -50,5 +50,6 @@ def test_home_topic_tab_lists_every_book_of_the_topic():
     topic = max((t for t in groups if t != "متفرقه"), key=lambda t: len(groups[t]))
     assert len(groups[topic]) > 6
     t = c.get("/", params={"category": topic}).text
-    assert t.count('class="book-tile') == len(groups[topic])
+    assert t.count('class="book-tile') == min(12, len(groups[topic]))  # 2 rows visible, rest behind «نمایش بیشتر»
+    assert f"نمایش بیشتر · همهٔ" in t
     assert f"/books?category=" in t  # «فهرست کامل» keeps the topic
