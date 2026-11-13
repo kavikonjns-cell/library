@@ -17,16 +17,38 @@ def test_membership_lasts_exactly_one_year():
     assert jalali.to_jalali(jalali.membership_valid_until(jalali.parse_jalali("1403/12/30"))) == "۱۴۰۴/۱۲/۲۹"
 
 
-def test_two_week_expiry_warning_goes_to_member_and_librarians_once():
+def test_two_expiry_warnings_month_and_two_weeks_each_once():
     code = make_member(on=TODAY)
-    left = dt.date.fromisoformat(services.get_member(code)["valid_until"]) - D(days=14)
-    assert not [n for n in services.daily_tasks(left - D(days=1)) if "اعتبار" in n.text]   # 15 days left: nothing yet
-    notes = services.daily_tasks(left)
-    member_msg = [n for n in notes if n.member_code == code]
-    assert member_msg and "دو هفته" in member_msg[0].text
+    end = dt.date.fromisoformat(services.get_member(code)["valid_until"])
+    assert not [n for n in services.daily_tasks(end - D(days=31)) if "اعتبار" in n.text]
+    notes = services.daily_tasks(end - D(days=30))
+    mm = [n for n in notes if n.member_code == code]
+    assert mm and "یک ماه" in mm[0].text
     assert any(n.admins and code in n.text for n in notes)
-    # not repeated the next day; and a renewal starts a fresh cycle
-    assert not [n for n in services.daily_tasks(left + D(days=1)) if "اعتبار" in n.text]
+    assert not [n for n in services.daily_tasks(end - D(days=29)) if "اعتبار" in n.text]   # not repeated
+    notes = services.daily_tasks(end - D(days=14))
+    mm = [n for n in notes if n.member_code == code]
+    assert mm and "دو هفته" in mm[0].text and "کتاب جدید" in mm[0].text
+    assert any(n.admins and code in n.text for n in notes)
+    assert not [n for n in services.daily_tasks(end - D(days=13)) if "اعتبار" in n.text]
+
+
+def test_no_new_book_in_last_14_days_but_ok_before():
+    code = make_member(on=TODAY)
+    end = dt.date.fromisoformat(services.get_member(code)["valid_until"])
+    m = services.get_member(code)
+    assert services.membership_problems(m, end - D(days=15)) == []
+    assert services.membership_problems(m, end - D(days=14))
+    assert "تمدید" in services.membership_problems(m, end - D(days=3))[0]
+
+
+def test_delete_all_members_clears_everything():
+    a, b = make_member(tg=1), make_member(tg=2, phone="09121230000")
+    res = services.delete_all_members(TODAY)
+    assert res.ok
+    with connect() as conn:
+        assert conn.execute("SELECT COUNT(*) FROM members").fetchone()[0] == 0
+        assert conn.execute("SELECT COUNT(*) FROM payments WHERE member_code IN (?, ?)", (a, b)).fetchone()[0] == 0
 
 
 def test_register_issues_sequential_codes_and_fee():
