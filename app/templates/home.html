@@ -62,10 +62,12 @@
       <noscript><button class="button" type="submit">اعمال</button></noscript>
     </form>
     {% if books %}
-    <ul class="book-grid">
+    <ul class="book-grid home-preview">
       {% for b in books %}{{ tile(b, ratings, loop.index > 4) }}
       {% endfor %}
     </ul>
+    <p class="group-more home-more">
+      {% for cls, cap in (('more-lg', 6), ('more-sm', 4)) %}{% if n_books > cap %}<a class="button {{ cls }}" href="{{ full_href }}">نمایش بیشتر · همهٔ {{ fa(n_books) }} کتاب</a>{% endif %}{% endfor %}</p>
     {% else %}
     <p class="empty">کتابی پیدا نشد. <a href="/#shelves">پاک کردن فیلترها</a></p>
     {% endif %}

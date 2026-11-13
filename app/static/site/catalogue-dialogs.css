@@ -59,3 +59,6 @@ button:disabled{cursor:default;opacity:.6}.request-pending{display:inline-flex;g
 @media(min-width:1024px){.is-preview .full-catalogue-grid>:nth-child(n+9){display:none}.group-more .more-lg{display:inline-flex}}
 @media(min-width:768px) and (max-width:1023px){.is-preview .full-catalogue-grid>:nth-child(n+7){display:none}.group-more .more-md{display:inline-flex}}
 @media(max-width:767px){.is-preview .full-catalogue-grid>:nth-child(n+5){display:none}.group-more .more-sm{display:inline-flex}}
+.home-more .more-lg,.home-more .more-sm{display:none}
+@media(min-width:768px){.home-preview>:nth-child(n+7){display:none}.home-more .more-lg{display:inline-flex}}
+@media(max-width:767px){.home-preview>:nth-child(n+5){display:none}.home-more .more-sm{display:inline-flex}}

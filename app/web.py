@@ -91,7 +91,7 @@ def _public_routes(app: FastAPI) -> None:
         for it in picks["items"]:
             it["book"]["status_label"] = re.sub(r"^[^\w\u0600-\u06FF]+", "", it["book"]["status_label"])
         return templates.TemplateResponse(request, "home.html", {
-            "member": member, "loan": loan, "picks": picks, "books": books if (category or only_free) else books[:6], "tabs": tabs, "category": category,
+            "member": member, "loan": loan, "picks": picks, "books": books[:12], "n_books": len(books), "tabs": tabs, "category": category,
             "available": only_free, "sort": sort, "ratings": ratings,
             "full_href": "/books" + ("?" + urlencode([("category", category)]) if category else ""),
             "flash": request.session.pop("flash", None),
