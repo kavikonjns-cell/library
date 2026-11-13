@@ -191,7 +191,7 @@ def member_routes(app: FastAPI, templates) -> None:
         return render(request, "member/me.html", m=dict(m), o=overview(m["code"], on),
                       club_stats=club.stats(m["code"], on) if m["club"] else None,
                       badges=club.BADGES, inbox=services.inbox(m["code"]),
-                      expired=jalali.to_jalali(m["valid_until"]), valid=m["valid_until"] >= on.isoformat(),
+                      expired=jalali.to_jalali(m["valid_until"]), left=services.days_left(m["valid_until"], on), valid=m["valid_until"] >= on.isoformat(),
                       log_choices=config.CLUB_LOG_CHOICES, hours=club.hours)
 
     @app.post("/me/{action}")

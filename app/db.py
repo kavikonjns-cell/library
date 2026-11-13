@@ -51,7 +51,7 @@ CREATE TABLE IF NOT EXISTS members (
     wish           TEXT DEFAULT '',
     fee            INTEGER NOT NULL DEFAULT 0,
     registered_at  TEXT NOT NULL,          -- ISO date of joining or last renewal
-    valid_until    TEXT NOT NULL,          -- ISO date, last day of Esfand
+    valid_until    TEXT NOT NULL,          -- ISO date, one year after registration/renewal
     payment_status TEXT NOT NULL DEFAULT 'pending',  -- pending | paid | rejected
     status         TEXT NOT NULL DEFAULT 'active',   -- active | revoked
     receipt_file_id TEXT DEFAULT '',
@@ -172,6 +172,7 @@ MIGRATIONS = {
     "members": [("club", "INTEGER NOT NULL DEFAULT 0"), ("club_joined_at", "TEXT DEFAULT ''"),
                 ("public_profile", "INTEGER NOT NULL DEFAULT 1"),
                 # website sign-in with a username and password (signup on the website)
+                ("expiry_notified", "TEXT NOT NULL DEFAULT ''"),  # valid_until value the 2-week warning was already sent for
                 ("username", "TEXT NOT NULL DEFAULT ''"), ("password_hash", "TEXT NOT NULL DEFAULT ''"),
                 ("password_enc", "TEXT NOT NULL DEFAULT ''")],
     "loans": [("finished", "INTEGER NOT NULL DEFAULT 0"), ("rating", "INTEGER NOT NULL DEFAULT 0")],

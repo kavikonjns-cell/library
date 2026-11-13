@@ -102,7 +102,7 @@ def _public_routes(app: FastAPI) -> None:
                          sort: str = "newest", page: int = 1):
         member = member_web.current_member(request)
         all_books = services.catalog()
-        category = category if category in catalogue.SHELF_TOPICS else ""
+        category = category if category in config.TOPICS else ""
         only_free = available == "1"
         sort = sort if sort in catalogue.SORTS else "newest"
         rate = catalogue.ratings()
@@ -127,6 +127,7 @@ def _public_routes(app: FastAPI) -> None:
         return templates.TemplateResponse(request, "books.html", {
             "member": member, "groups": catalogue.group(shown), "ratings": rate, "tabs": tabs, "q": q,
             "category": category, "available": only_free, "sort": sort, "total": len(found), "filtered": filtered,
+            "preview": not category and not q.strip(), "topic_href": lambda t: href(category=t),
             "page": page, "pages": pages, "prev_href": href(page=page - 1 if page > 2 else "") if page > 1 else "",
             "next_href": href(page=page + 1) if page < pages else "", "clear_href": "/books",
             "page_hrefs": [(n, href(page=n if n > 1 else ""), n == page) for n in range(1, pages + 1)],
@@ -148,7 +149,7 @@ def _public_routes(app: FastAPI) -> None:
     async def register_page(request: Request):
         valid = jalali.membership_valid_until(jalali.today())
         return templates.TemplateResponse(request, "register.html", {
-            "valid_year": jalali.fa(jalali.jalali_year(valid)), "today": jalali.to_jalali(jalali.today()),
+            "valid_until": jalali.to_jalali(valid), "today": jalali.to_jalali(jalali.today()),
             "member": member_web.current_member(request), "flash": None,
         })
 
@@ -317,8 +318,11 @@ def _admin_routes(app: FastAPI) -> None:
     async def dashboard(request: Request):
         _guard(request)
         today = jalali.today().isoformat()
+        with connect() as conn:
+            expiring = [dict(m, left=services.days_left(m["valid_until"], jalali.today()))
+                        for m in services.expiring_members(conn, jalali.today())]
         return _render(
-            request, "admin/dashboard.html", stats=services.dashboard(),
+            request, "admin/dashboard.html", stats=services.dashboard(), expiring=expiring,
             pending=_rows("SELECT * FROM members WHERE payment_status != 'paid' AND status = 'active' ORDER BY seq"),
             reserved=_rows(
                 "SELECT l.*, b.title, m.name, m.phone FROM loans l JOIN books b ON b.code = l.book_code"

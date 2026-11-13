@@ -66,15 +66,17 @@ def parse_jalali(text: str) -> dt.date:
 
 
 def membership_valid_until(registered: dt.date) -> dt.date:
-    """Last day of Esfand of the membership year.
+    """Exactly one year after the registration (or renewal) date: the same day and month of the next Jalali year.
 
-    Rule 10: membership lasts until the end of Esfand of the same year; if the
-    member registers from 1 Dey onward, until the end of Esfand of next year.
-    """
+    A 30 Esfand registration lands on the last day of Esfand when the next year is not a leap year."""
     j = jdatetime.date.fromgregorian(date=registered)
-    year = j.year + 1 if j.month >= config.NEXT_YEAR_FROM_MONTH else j.year
-    first_of_next = jdatetime.date(year + 1, 1, 1).togregorian()
-    return first_of_next - dt.timedelta(days=1)
+    year = j.year + 1
+    day = j.day
+    while True:
+        try:
+            return jdatetime.date(year, j.month, day).togregorian()
+        except ValueError:
+            day -= 1
 
 
 def jalali_year(d: dt.date) -> int:

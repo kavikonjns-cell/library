@@ -2,6 +2,9 @@
 {% block title %}حساب من · {{ cfg.LIBRARY_NAME }}{% endblock %}
 {% block body %}
 {% set o_loan = o.loan %}
+{% if m.status == 'active' and valid and left <= cfg.EXPIRY_WARNING_DAYS %}
+<div class="form-status" data-kind="error" role="status">⏳ {{ 'امروز آخرین روز' if left <= 0 else ('فقط ' ~ fa(left) ~ ' روز') ~ ' تا پایان' }} اعتبار عضویت شما (تا {{ expired }}) باقی مانده است. برای تمدید مجدد با مسئول کتابخانه هماهنگ کنید: <b class="mono">{{ fa(cfg.LIBRARY_PHONE) }}</b></div>
+{% endif %}
 <h1 class="page-title">سلام، {{ m.name.split()[0] if m.name else 'عضو عزیز' }}</h1>
 <p class="page-sub">همهٔ کارهای کتابخانه از همین‌جا انجام می‌شود.</p>
 <div class="account-grid">

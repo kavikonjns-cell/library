@@ -97,3 +97,13 @@ def test_every_book_of_a_topic_is_listed():
         want = sum(1 for b in books if topic in catalogue.topics_of(b))
         got = c.get("/books", params={"category": topic}).text.count('class="book-tile')
         assert got == want, topic
+
+
+def test_overview_previews_two_rows_and_links_to_the_whole_topic():
+    c = _client()
+    t = c.get("/books").text
+    assert "is-preview" in t and "نمایش بیشتر" in t and "/books?category=" in t
+    # the whole topic page and searches are not cut short
+    topic = catalogue.SHELF_TOPICS[0]
+    assert "is-preview" not in c.get("/books", params={"category": topic}).text
+    assert "is-preview" not in c.get("/books", params={"q": "a"}).text

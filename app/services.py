@@ -195,7 +195,7 @@ def register_member(form: dict, tg_user_id: int | None = None, tg_username: str 
     msg = (f"🎉 ثبت‌نام شما انجام شد.\n\n"
            f"کد عضویت: {code}\n"
            f"حق عضویت سالیانه: {money(fee)}\n"
-           f"اعتبار عضویت: تا پایان اسفند {fa(jalali_year(valid_until))}\n\n"
+           f"اعتبار عضویت: یک سال، تا {to_jalali(valid_until)}\n\n"
            f"💳 لطفاً حق عضویت را به کارت {fa(_card())} به نام {config.CARD_OWNER} واریز کنید "
            + ("و عکس فیش را در «حساب من» در سایت بفرستید (یا در ربات تلگرام). "
               if web_account and not tg_user_id else "و عکس فیش را همین‌جا در ربات بفرستید. ")
@@ -817,11 +817,43 @@ def daily_tasks(on: dt.date | None = None) -> list[Notice]:
         if overdue_lines:
             notices.append(Notice(admins=True, text="📋 امانت‌های دیرکرد امروز:\n" + "\n".join(overdue_lines)))
 
-        week = (on + dt.timedelta(days=7)).isoformat()
-        for m in conn.execute("SELECT * FROM members WHERE valid_until = ? AND status = 'active'", (week,)).fetchall():
-            notices.append(Notice(member_code=m["code"], text=(
-                f"🔔 اعتبار عضویت شما در کتابخانه کاوی کنج {to_jalali(m['valid_until'])} تمام می‌شود. "
-                f"برای تمدید با مسئول کتابخانه هماهنگ کنید.")))
+        notices += _expiry_warnings(conn, on)
+    return notices
+
+
+def expiring_members(conn, on: dt.date) -> list:
+    """Active members whose membership ends within the warning window (today included), soonest first."""
+    last = (on + dt.timedelta(days=config.EXPIRY_WARNING_DAYS)).isoformat()
+    return conn.execute("SELECT * FROM members WHERE status = 'active' AND valid_until >= ? AND valid_until <= ?"
+                        " ORDER BY valid_until, seq", (on.isoformat(), last)).fetchall()
+
+
+def days_left(valid_until: str, on: dt.date) -> int:
+    return (_date(valid_until) - on).days
+
+
+def _left_phrase(days: int) -> str:
+    if days == config.EXPIRY_WARNING_DAYS == 14:
+        return "فقط دو هفته"
+    return "امروز آخرین روز" if days <= 0 else f"فقط {fa(days)} روز"
+
+
+def _expiry_warnings(conn, on: dt.date) -> list[Notice]:
+    """One warning per membership year: to the member and (as one list) to the librarians."""
+    notices, fresh = [], []
+    for m in expiring_members(conn, on):
+        if m["expiry_notified"] == m["valid_until"]:
+            continue
+        days = days_left(m["valid_until"], on)
+        left = _left_phrase(days)
+        text = (f"🔔 {left} تا پایان مهلت اعتبار عضویت شما در کتابخانه کاوی کنج باقی مانده است "
+                f"(تا {to_jalali(m['valid_until'])}).\nبرای تمدید مجدد عضویت اقدام کنید: با مسئول کتابخانه هماهنگ کنید"
+                f" یا تماس بگیرید: {fa(config.LIBRARY_PHONE)}")
+        notices.append(Notice(member_code=m["code"], text=text))
+        conn.execute("UPDATE members SET expiry_notified = ? WHERE code = ?", (m["valid_until"], m["code"]))
+        fresh.append(f"• {m['code']} {m['name']} ({fa(m['phone'])}): {_left_phrase(days)} تا {to_jalali(m['valid_until'])}")
+    if fresh:
+        notices.append(Notice(admins=True, text="⏳ اعتبار این اعضا رو به پایان است؛ برای تمدید پیگیری کنید:\n" + "\n".join(fresh)))
     return notices
 
 

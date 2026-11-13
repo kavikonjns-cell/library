@@ -47,7 +47,7 @@ RULES_TEXT = (
     "۷. کتاب با همان وضعیت برمی‌گردد؛ بدون یادداشت، خط کشیدن یا تا زدن صفحه‌ها.\n"
     "۸. اگر کتاب گم شود یا آسیب جدی ببیند، عضو نسخه‌ای جدید از همان کتاب تهیه می‌کند.\n"
     "۹. کتاب امانتی به شخص دیگری داده نمی‌شود.\n"
-    "۱۰. عضویت تا پایان اسفند همان سال معتبر است؛ برای ثبت‌نام از اول دی به بعد، تا پایان اسفند سال بعد.\n"
+    "۱۰. عضویت از روز ثبت‌نام دقیقاً یک سال معتبر است؛ دو هفته پیش از پایان اعتبار، ربات یادآوری می‌فرستد.\n"
     "۱۱. حق عضویت در هیچ شرایطی بازگردانده نمی‌شود."
 )
 
@@ -540,6 +540,12 @@ async def admin_home(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         res = conn.execute("SELECT l.*, b.title, m.name FROM loans l JOIN books b ON b.code = l.book_code"
                            " JOIN members m ON m.code = l.member_code WHERE l.status = 'reserved' ORDER BY l.id").fetchall()
         pend = conn.execute("SELECT * FROM members WHERE payment_status != 'paid' AND status = 'active'").fetchall()
+    with connect() as conn:
+        soon = services.expiring_members(conn, jtoday())
+    if soon:
+        await _reply(update, "⏳ اعتبار این اعضا رو به پایان است:\n" + "\n".join(
+            f"• {m['code']} {m['name']}: {fa(services.days_left(m['valid_until'], jtoday()))} روز مانده (تا {to_jalali(m['valid_until'])})"
+            for m in soon))
     for r in res:
         await _reply(update, f"📌 رزرو #{fa(r['id'])}: «{r['title']}» ({r['book_code']}) برای {r['member_code']} {r['name']}"
                              f"\nتحویل گرفتن تا {to_jalali(r['reserve_expires'])}",
