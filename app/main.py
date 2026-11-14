@@ -4,6 +4,7 @@
 """
 from __future__ import annotations
 
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 
@@ -38,6 +39,9 @@ async def _register_webhook() -> None:
         log.exception("could not register the Telegram webhook")
 
 
+_bg: list = []
+
+
 @asynccontextmanager
 async def lifespan(_app):
     init_db()
@@ -56,7 +60,8 @@ async def lifespan(_app):
         notify.set_bot(tg_app.bot)
         log.info("Telegram bot started")
     elif config.BOT_TOKEN and config.BOT_MODE == "webhook" and config.WEBHOOK_SECRET and _https():
-        await _register_webhook()
+        # do not hold the site back: Telegram registration runs in the background after the server is up
+        _bg.append(asyncio.create_task(_register_webhook()))
     else:
         log.warning("bot not polling (BOT_MODE=%s, token set: %s)", config.BOT_MODE, bool(config.BOT_TOKEN))
     try:
